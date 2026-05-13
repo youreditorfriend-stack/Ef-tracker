@@ -142,7 +142,13 @@ function sendEmailReport(data) {
 
   let emailSent = false;
   try {
-    const opts = { name: 'Ef Calculator' };
+    // Send-as alias: must be verified in script owner's Gmail
+    // (Settings → Accounts and Import → Send mail as → Add another email)
+    const opts = {
+      name: 'Ef Calculator',
+      from: 'janishwork@gmail.com',
+      replyTo: 'janishwork@gmail.com'
+    };
     if (blob) opts.attachments = [blob];
     GmailApp.sendEmail(targetEmail, subject, body, opts);
     emailSent = true;
