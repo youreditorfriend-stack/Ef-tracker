@@ -10,6 +10,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -39,7 +40,12 @@
   --font:'Inter',system-ui,sans-serif;
   --trans:.2s ease;
 }
-html,body{height:100%;background:radial-gradient(ellipse at top,#1a0e05 0%,var(--bg) 50%);color:var(--text);font-family:var(--font);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+html,body{height:100%;background:radial-gradient(ellipse at top,var(--bg-tint,#1a0e05) 0%,var(--bg) 50%);color:var(--text);font-family:var(--font);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased;overscroll-behavior-y:contain}
+#main[data-theme="income"]{--accent:#22C55E;--accent2:#4ADE80;--accent-dim:rgba(34,197,94,.18);--amber:#16A34A;--bg-tint:#0a1f12}
+#main[data-theme="expense"]{--accent:#EF4444;--accent2:#F87171;--accent-dim:rgba(239,68,68,.18);--amber:#DC2626;--bg-tint:#1f0a0a}
+#main[data-theme="income"] ~ #header,#main[data-theme="expense"] ~ #header{}
+body:has(#main[data-theme="income"]){--bg-tint:#0a1f12}
+body:has(#main[data-theme="expense"]){--bg-tint:#1f0a0a}
 button{font-family:var(--font)}
 
 #app{display:flex;flex-direction:column;min-height:100dvh;max-width:560px;margin:0 auto;position:relative}
@@ -54,30 +60,32 @@ button{font-family:var(--font)}
 .progress-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--amber));border-radius:2px;transition:width .5s cubic-bezier(.4,0,.2,1);box-shadow:0 0 8px var(--accent-dim)}
 
 /* CONTAINER */
-#main{flex:1;padding:24px var(--gap) 100px;overflow-x:hidden}
+#main{flex:1;padding:18px var(--gap) 100px;overflow-x:hidden}
 
 /* STEP HEADER */
-.step-h{margin-bottom:24px}
+.step-h{margin-bottom:16px}
 .step-num{display:inline-block;background:var(--accent-dim);color:var(--accent);font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;letter-spacing:.06em;text-transform:uppercase}
-.step-title{font-size:26px;font-weight:800;line-height:1.15;margin-top:10px;letter-spacing:-.02em}
-.step-sub{font-size:14px;color:var(--text2);margin-top:8px;line-height:1.5}
+.step-title{font-size:24px;font-weight:800;line-height:1.15;margin-top:8px;letter-spacing:-.02em}
+.step-sub{font-size:13px;color:var(--text2);margin-top:6px;line-height:1.45}
 
 /* CARDS */
 .card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-md);padding:var(--gap);margin-bottom:var(--gap-sm)}
 .glow{box-shadow:0 0 40px var(--accent-dim);border-color:var(--accent)}
 
 /* NUM CONTROL (slider + number) */
-.num-ctrl{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-md);padding:14px var(--gap);margin-bottom:12px;transition:border-color var(--trans)}
+.num-ctrl{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-md);padding:12px 14px;margin-bottom:8px;transition:border-color var(--trans)}
 .num-ctrl:focus-within{border-color:var(--accent)}
-.num-top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
+.num-top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
 .num-lbl{font-size:13px;font-weight:500;color:var(--text2);flex:1;min-width:0}
-.num-display{background:var(--bg-input);border:1.5px solid var(--border);border-radius:var(--r-sm);color:var(--accent);font-family:var(--font);font-size:15px;font-weight:700;padding:6px 10px;width:120px;text-align:right;outline:none;transition:all var(--trans);-moz-appearance:textfield}
+.num-display{background:var(--bg-input);border:1.5px solid var(--border);border-radius:var(--r-sm);color:var(--accent);font-family:var(--font);font-size:15px;font-weight:700;padding:6px 10px;width:110px;text-align:right;outline:none;transition:all var(--trans);-moz-appearance:textfield;caret-color:var(--accent)}
 .num-display::-webkit-outer-spin-button,.num-display::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
 .num-display:focus{border-color:var(--accent);background:var(--accent-dim)}
+.num-display[readonly]{background:transparent;border-color:transparent;cursor:pointer;user-select:none;-webkit-user-select:none;pointer-events:auto}
+.num-display[readonly]:active{background:var(--accent-dim);border-color:var(--accent)}
 .num-prefix{font-size:13px;color:var(--text2);margin-right:-6px}
 .num-row{display:flex;align-items:center;gap:8px}
 .range-wrap{position:relative;height:24px;display:flex;align-items:center}
-input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:6px;border-radius:3px;background:linear-gradient(90deg,var(--accent) 0%,var(--accent) var(--p,0%),var(--border) var(--p,0%));outline:none;cursor:pointer}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:6px;border-radius:3px;background:linear-gradient(90deg,var(--accent) 0%,var(--accent) var(--p,0%),var(--border) var(--p,0%));outline:none;cursor:pointer;touch-action:pan-y}
 input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:#fff;cursor:pointer;box-shadow:0 0 0 4px var(--accent),0 0 14px var(--accent-dim);border:none}
 input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;background:#fff;cursor:pointer;box-shadow:0 0 0 4px var(--accent);border:none}
 .range-marks{display:flex;justify-content:space-between;font-size:10px;color:var(--text3);margin-top:6px;font-weight:500}
@@ -134,18 +142,20 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;bac
 #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
 /* WELCOME / SIGN IN */
-.welcome-hero{text-align:center;padding:30px 0 24px}
-.welcome-emoji{font-size:64px;margin-bottom:18px;filter:drop-shadow(0 4px 20px var(--accent-dim))}
-.welcome-title{font-size:32px;font-weight:900;line-height:1.1;letter-spacing:-.03em;margin-bottom:12px}
+.welcome-hero{text-align:center;padding:18px 0 14px}
+.welcome-emoji{font-size:56px;margin-bottom:12px;filter:drop-shadow(0 4px 20px var(--accent-dim))}
+.welcome-title{font-size:28px;font-weight:900;line-height:1.1;letter-spacing:-.03em;margin-bottom:10px}
 .welcome-title span{background:linear-gradient(90deg,var(--accent),var(--amber));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
-.welcome-sub{font-size:15px;color:var(--text2);margin-bottom:24px}
-.feat-list{text-align:left;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-md);padding:16px;margin-bottom:24px}
-.feat-item{display:flex;gap:12px;padding:8px 0;align-items:center}
+.welcome-sub{font-size:14px;color:var(--text2);margin-bottom:16px;padding:0 6px}
+.feat-list{text-align:left;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-md);padding:12px 14px;margin-bottom:16px}
+.feat-item{display:flex;gap:12px;padding:6px 0;align-items:center}
 .feat-ico{width:32px;height:32px;border-radius:50%;background:var(--accent-dim);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:16px}
 .feat-txt{font-size:13px;color:var(--text2)}
 .feat-txt strong{color:var(--text);font-weight:600}
-#g-signin-wrap{display:flex;justify-content:center;margin:20px 0}
-.signin-note{font-size:11px;color:var(--text3);text-align:center;margin-top:12px}
+#g-signin-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;margin:24px 0;min-height:48px}
+#g-signin-wrap>div{display:flex;justify-content:center;width:100%}
+#g_id_onload{display:none!important}
+.signin-note{font-size:11px;color:var(--text3);text-align:center;margin-top:12px;padding:0 20px}
 
 /* RESULT SCREEN */
 .score-hero{background:linear-gradient(135deg,#1a1209 0%,#1a0d05 100%);border:1px solid var(--accent);border-radius:var(--r-xl);padding:28px 22px;text-align:center;margin-bottom:var(--gap);position:relative;overflow:hidden}
@@ -192,7 +202,7 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;bac
 .rec-text{font-size:13px;color:var(--text2);line-height:1.5}
 .rec-text strong{color:var(--text);font-weight:600}
 
-.section-title{font-size:13px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.08em;margin:24px 0 12px;padding-left:2px}
+.section-title{font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.08em;margin:18px 0 8px;padding-left:2px}
 
 .action-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:30px}
 .action-grid .btn-full{grid-column:1/-1}
@@ -526,7 +536,7 @@ function numControl({key, label, min=0, max=100000, step=100, value=0, prefix='�
     <div class="num-lbl">${label}</div>
     <div class="num-row">
       ${prefix?`<span class="num-prefix">${prefix}</span>`:''}
-      <input type="number" class="num-display" min="${min}" max="${max*5}" value="${value}" data-num-input="${key}" inputmode="numeric"/>
+      <input type="text" class="num-display" value="${value}" data-num-input="${key}" data-num-min="${min}" data-num-max="${max*5}" inputmode="numeric" readonly/>
       ${suffix?`<span class="num-prefix">${suffix}</span>`:''}
     </div>
   </div>
@@ -868,9 +878,14 @@ function render(){
   document.getElementById('step-counter').textContent = step===Q.RESULT ? 'Result' : `Step ${step+1} of ${TOTAL_STEPS-1}`;
   const pct = step===Q.RESULT ? 100 : ((step+1)/(TOTAL_STEPS-1))*100;
   document.getElementById('progress-fill').style.width = pct+'%';
-  document.getElementById('main').innerHTML = STEP_RENDERERS[step]();
+  const main = document.getElementById('main');
+  // theme per step
+  if(step===Q.INCOME) main.dataset.theme='income';
+  else if(step===Q.EXPENSE) main.dataset.theme='expense';
+  else delete main.dataset.theme;
+  main.innerHTML = STEP_RENDERERS[step]();
   renderStepNav();
-  window.scrollTo({top:0,behavior:'smooth'});
+  window.scrollTo(0,0);
   AppState.save();
 }
 
@@ -930,7 +945,10 @@ function setupEvents(){
     // num-control NUMBER input
     if(t.dataset.numInput){
       const k = t.dataset.numInput;
-      const v = parseFloat(t.value)||0;
+      // strip non-digits, allow decimal
+      const cleaned = String(t.value).replace(/[^\d.]/g,'');
+      if(cleaned !== t.value) t.value = cleaned;
+      const v = parseFloat(cleaned)||0;
       AppState.answers[k] = v;
       // sync slider (clamp visually)
       const ctrl = t.closest('.num-ctrl');
@@ -968,6 +986,21 @@ function setupEvents(){
       return;
     }
   });
+
+  // tap-to-edit: remove readonly only when user explicitly taps the number
+  document.addEventListener('pointerdown', e=>{
+    const t = e.target;
+    if(t.classList && t.classList.contains('num-display') && t.hasAttribute('readonly')){
+      t.removeAttribute('readonly');
+      requestAnimationFrame(()=>{ try{ t.focus(); t.select(); }catch{} });
+    }
+  });
+  // re-arm readonly on blur (prevents accidental scroll-focus)
+  document.addEventListener('blur', e=>{
+    if(e.target.classList && e.target.classList.contains('num-display')){
+      e.target.setAttribute('readonly','');
+    }
+  }, true);
 
   document.addEventListener('click', e=>{
     const t = e.target;
@@ -1032,7 +1065,7 @@ function setupEvents(){
     }
 
     // result actions
-    if(t.id==='btn-pdf'){ window.print(); return; }
+    if(t.id==='btn-pdf'){ downloadPDF(); return; }
     if(t.id==='btn-wa'){ shareWhatsApp(); return; }
     if(t.id==='btn-submit'){ submitToSheet(); return; }
     if(t.id==='btn-restart'){
@@ -1102,6 +1135,170 @@ function liveUpdateResult(){
 }
 
 // ═══════════════════════════════════════════════════════════════
+// PDF DOWNLOAD (html2pdf — real downloadable file)
+// ═══════════════════════════════════════════════════════════════
+function buildPDFHTML(a, sd){
+  const f = sd.financials;
+  const pct = scoreToPercentile(sd.score);
+  const N = Math.round(FREELANCER_POP_IN * pct/100);
+  const stageColor = {Elite:'#A855F7',Thriving:'#22C55E',Growing:'#F97316',Stable:'#3B82F6',AtRisk:'#F59E0B',Critical:'#EF4444'}[sd.stage.key]||'#F97316';
+  const recs = recommendations(a, sd);
+  const row = (l,v,c='#111')=>`<tr><td style="padding:6px 8px;color:#666;font-size:11px">${l}</td><td style="padding:6px 8px;text-align:right;color:${c};font-weight:700;font-size:12px">${v}</td></tr>`;
+  const expLines = [];
+  if(a.rent) expLines.push(['Rent / Office', a.rent]);
+  if(a.food) expLines.push(['Food', a.food]);
+  if(a.internet) expLines.push(['Internet', a.internet]);
+  if(a.electricity) expLines.push(['Electricity', a.electricity]);
+  if(a.phone) expLines.push(['Phone', a.phone]);
+  if(a.software) expLines.push(['Software / AI', a.software]);
+  if(a.travel) expLines.push(['Travel', a.travel]);
+  (a.customExpenses||[]).forEach(c=>{ if(c.amount>0) expLines.push([c.name||'Custom', c.amount]); });
+  if(a.hasLoan && a.emi) expLines.push(['EMI', a.emi]);
+  const incLines = [];
+  if(a.mainJobMonthly) incLines.push(['Salary / Main Job', a.mainJobMonthly]);
+  if(a.videoRate*a.videoQty) incLines.push([`Video Editing (${a.videoQty}×${fmtRs(a.videoRate)})`, a.videoRate*a.videoQty]);
+  if(a.thumbRate*a.thumbQty) incLines.push([`Thumbnails (${a.thumbQty}×${fmtRs(a.thumbRate)})`, a.thumbRate*a.thumbQty]);
+  if(a.consultRate*a.consultDays) incLines.push([`Consulting (${a.consultDays}×${fmtRs(a.consultRate)})`, a.consultRate*a.consultDays]);
+  if(a.otherInc) incLines.push(['Other income', a.otherInc]);
+  const today = new Date().toLocaleDateString('en-IN', {day:'numeric',month:'short',year:'numeric'});
+  return `
+<div style="font-family:Inter,Arial,sans-serif;color:#111;background:#fff;padding:24px 28px;max-width:780px">
+  <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #F97316;padding-bottom:12px;margin-bottom:18px">
+    <div>
+      <div style="font-size:22px;font-weight:900;letter-spacing:-.02em">Ef <span style="color:#F97316">Calculator</span></div>
+      <div style="font-size:11px;color:#666;margin-top:2px">Financial Health Report · ${today}</div>
+    </div>
+    <div style="text-align:right">
+      <div style="font-size:13px;font-weight:700">${a.name||AppState.user?.name||'—'}</div>
+      <div style="font-size:10px;color:#666">${AppState.user?.email||''}</div>
+      <div style="font-size:10px;color:#666">${(a.whatsappCC||'')+(a.whatsapp||'')}</div>
+    </div>
+  </div>
+
+  <!-- HERO SCORE -->
+  <div style="display:flex;gap:20px;align-items:center;background:linear-gradient(135deg,#fff8f1,#fef3e8);border:2px solid #F97316;border-radius:14px;padding:20px;margin-bottom:18px">
+    <div style="width:110px;height:110px;border-radius:50%;background:#fff;border:8px solid ${stageColor};display:flex;align-items:center;justify-content:center;flex-shrink:0">
+      <div style="text-align:center"><div style="font-size:34px;font-weight:900;line-height:1;color:#111">${sd.score}</div><div style="font-size:10px;color:#666">/ 100</div></div>
+    </div>
+    <div style="flex:1">
+      <div style="display:inline-block;background:${stageColor};color:#fff;font-size:11px;font-weight:700;padding:4px 12px;border-radius:20px;margin-bottom:6px">${sd.stage.label}</div>
+      <div style="font-size:13px;color:#555;margin-bottom:8px">${sd.stage.desc}</div>
+      <div style="font-size:11px;color:#333"><strong style="color:#F97316;font-size:13px">Better than ${pct.toFixed(1)}%</strong> of Indian freelancers — ahead of <strong>${fmtN(N)}</strong> people.</div>
+    </div>
+  </div>
+
+  <!-- MONTHLY / YEARLY -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+    <table style="width:100%;background:#f9f9f9;border:1px solid #e5e5e5;border-radius:8px;border-collapse:separate;border-spacing:0;overflow:hidden">
+      <tr><td colspan="2" style="background:#111;color:#fff;padding:6px 10px;font-size:10px;font-weight:700;letter-spacing:.08em">📅 MONTHLY</td></tr>
+      ${row('Income', fmtRs(f.monthlyIncome), '#22C55E')}
+      ${row('Expenses', fmtRs(f.monthlyExpense), '#EF4444')}
+      ${row('Investments', fmtRs(f.monthlyInvest), '#F97316')}
+      ${row('Net Profit', fmtRs(f.monthlyProfit), f.monthlyProfit>=0?'#22C55E':'#EF4444')}
+    </table>
+    <table style="width:100%;background:#f9f9f9;border:1px solid #e5e5e5;border-radius:8px;border-collapse:separate;border-spacing:0;overflow:hidden">
+      <tr><td colspan="2" style="background:#111;color:#fff;padding:6px 10px;font-size:10px;font-weight:700;letter-spacing:.08em">📆 YEARLY</td></tr>
+      ${row('Income', fmtRs(f.yearlyIncome), '#22C55E')}
+      ${row('Expenses', fmtRs(f.yearlyExpense), '#EF4444')}
+      ${row('Investments', fmtRs(f.yearlyInvest), '#F97316')}
+      ${row('Net Profit', fmtRs(f.yearlyProfit), f.yearlyProfit>=0?'#22C55E':'#EF4444')}
+    </table>
+  </div>
+
+  <!-- INCOME / EXPENSE BREAKDOWN -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+    <div>
+      <div style="font-size:11px;font-weight:700;color:#22C55E;letter-spacing:.08em;margin-bottom:6px">▲ INCOME BREAKDOWN</div>
+      <table style="width:100%;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;border-collapse:separate;border-spacing:0;overflow:hidden">
+        ${incLines.length?incLines.map(l=>row(l[0],fmtRs(l[1]),'#15803d')).join(''):'<tr><td style="padding:8px;font-size:11px;color:#999">No income recorded</td></tr>'}
+      </table>
+    </div>
+    <div>
+      <div style="font-size:11px;font-weight:700;color:#EF4444;letter-spacing:.08em;margin-bottom:6px">▼ EXPENSE BREAKDOWN</div>
+      <table style="width:100%;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;border-collapse:separate;border-spacing:0;overflow:hidden">
+        ${expLines.length?expLines.map(l=>row(l[0],fmtRs(l[1]),'#b91c1c')).join(''):'<tr><td style="padding:8px;font-size:11px;color:#999">No expenses recorded</td></tr>'}
+      </table>
+    </div>
+  </div>
+
+  <!-- SCORE BREAKDOWN -->
+  <div style="font-size:11px;font-weight:700;color:#666;letter-spacing:.08em;margin-bottom:8px">SCORE BREAKDOWN</div>
+  <div style="background:#f9f9f9;border:1px solid #e5e5e5;border-radius:8px;padding:12px;margin-bottom:16px">
+    ${sd.breakdown.map(b=>`
+      <div style="margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px">
+          <span style="color:#666">${b.key}</span>
+          <span style="font-weight:700">${b.val.toFixed(0)} / ${b.max}</span>
+        </div>
+        <div style="height:5px;background:#e5e5e5;border-radius:3px;overflow:hidden">
+          <div style="height:100%;width:${b.pct}%;background:linear-gradient(90deg,#F97316,#F59E0B);border-radius:3px"></div>
+        </div>
+      </div>`).join('')}
+  </div>
+
+  <!-- KEY STATS -->
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px">
+    <div style="background:#f9f9f9;border:1px solid #e5e5e5;border-radius:8px;padding:10px;text-align:center">
+      <div style="font-size:9px;color:#666;text-transform:uppercase;font-weight:700">Profit Margin</div>
+      <div style="font-size:16px;font-weight:800;color:#111;margin-top:4px">${f.monthlyIncome>0?((f.monthlyIncome-f.monthlyExpense)/f.monthlyIncome*100).toFixed(0):0}%</div>
+    </div>
+    <div style="background:#f9f9f9;border:1px solid #e5e5e5;border-radius:8px;padding:10px;text-align:center">
+      <div style="font-size:9px;color:#666;text-transform:uppercase;font-weight:700">Savings Rate</div>
+      <div style="font-size:16px;font-weight:800;color:#111;margin-top:4px">${f.monthlyIncome>0?(f.monthlyInvest/f.monthlyIncome*100).toFixed(0):0}%</div>
+    </div>
+    <div style="background:#f9f9f9;border:1px solid #e5e5e5;border-radius:8px;padding:10px;text-align:center">
+      <div style="font-size:9px;color:#666;text-transform:uppercase;font-weight:700">Emergency Fund</div>
+      <div style="font-size:16px;font-weight:800;color:#111;margin-top:4px">${f.monthlyExpense>0?((a.emergencyFund||0)/f.monthlyExpense).toFixed(1):0}× mo</div>
+    </div>
+    <div style="background:#f9f9f9;border:1px solid #e5e5e5;border-radius:8px;padding:10px;text-align:center">
+      <div style="font-size:9px;color:#666;text-transform:uppercase;font-weight:700">Goal Progress</div>
+      <div style="font-size:16px;font-weight:800;color:#111;margin-top:4px">${a.targetIncome>0?Math.min(100,Math.round(f.monthlyIncome/a.targetIncome*100)):0}%</div>
+    </div>
+  </div>
+
+  <!-- RECOMMENDATIONS -->
+  <div style="font-size:11px;font-weight:700;color:#666;letter-spacing:.08em;margin-bottom:8px">💡 PERSONALIZED RECOMMENDATIONS</div>
+  ${recs.map(r=>`
+    <div style="background:#fffbeb;border-left:3px solid #F97316;padding:8px 12px;margin-bottom:6px;border-radius:4px">
+      <div style="font-size:11px;color:#333;line-height:1.5">${r.ico} ${r.txt}</div>
+    </div>
+  `).join('')}
+
+  <!-- FOOTER -->
+  <div style="border-top:1px solid #e5e5e5;margin-top:18px;padding-top:10px;display:flex;justify-content:space-between;font-size:9px;color:#999">
+    <div>Generated by Ef Calculator · calculator.youreditorfriend.in</div>
+    <div>Age ${a.age} · ${a.experience}y exp · ${a.employment}</div>
+  </div>
+</div>`;
+}
+
+function downloadPDF(){
+  if(typeof html2pdf === 'undefined'){ toast('⏳ PDF library loading, try again in 2s'); return; }
+  toast('📄 Generating PDF...');
+  const a = AppState.answers;
+  const sd = computeScore(a);
+  const wrap = document.createElement('div');
+  wrap.style.cssText = 'position:fixed;left:-9999px;top:0;width:780px;background:#fff';
+  wrap.innerHTML = buildPDFHTML(a, sd);
+  document.body.appendChild(wrap);
+  const filename = `EfCalculator_${(a.name||'Report').replace(/[^\w]/g,'_')}_${new Date().toISOString().slice(0,10)}.pdf`;
+  html2pdf().set({
+    margin: [8,6,8,6],
+    filename,
+    image: { type:'jpeg', quality:0.96 },
+    html2canvas: { scale:2, useCORS:true, backgroundColor:'#fff' },
+    jsPDF: { unit:'mm', format:'a4', orientation:'portrait' },
+    pagebreak: { mode:['avoid-all','css','legacy'] }
+  }).from(wrap.firstElementChild).save().then(()=>{
+    document.body.removeChild(wrap);
+    toast('✅ PDF downloaded');
+  }).catch(err=>{
+    document.body.removeChild(wrap);
+    toast('❌ PDF failed: '+err.message);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
 // SUBMIT TO GOOGLE SHEET
 // ═══════════════════════════════════════════════════════════════
 async function submitToSheet(){
@@ -1140,7 +1337,7 @@ async function submitToSheet(){
 function shareWhatsApp(){
   const a = AppState.answers;
   const sd = computeScore(a);
-  const txt = `My Ef Calculator score: *${sd.score}/100* — ${sd.stage.label}\n\nMonthly Income: ${fmtRs(sd.financials.monthlyIncome)}\nMonthly Profit: ${fmtRs(sd.financials.monthlyProfit)}\n\nCheck yours at https://efcalculator.app`;
+  const txt = `My Ef Calculator score: *${sd.score}/100* — ${sd.stage.label}\n\nMonthly Income: ${fmtRs(sd.financials.monthlyIncome)}\nMonthly Profit: ${fmtRs(sd.financials.monthlyProfit)}\n\nCheck yours at https://calculator.youreditorfriend.in`;
   window.open(`https://wa.me/?text=${encodeURIComponent(txt)}`, '_blank');
 }
 
