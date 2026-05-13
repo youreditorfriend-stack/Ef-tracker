@@ -1288,29 +1288,37 @@ function downloadPDF(){
   toast('📄 Generating PDF...');
   const a = AppState.answers;
   const sd = computeScore(a);
-  const wrap = document.createElement('div');
-  // off-screen but in flow so layout is reliable; explicit A4 px width
-  wrap.style.cssText = 'position:absolute;top:0;left:-99999px;width:794px;background:#fff';
-  wrap.innerHTML = buildPDFHTML(a, sd);
-  document.body.appendChild(wrap);
+  // Visible overlay during generation — most reliable for html2canvas
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:99999;overflow:auto;padding:20px;display:block;text-align:center';
+  const inner = document.createElement('div');
+  inner.style.cssText = 'background:#fff;width:794px;max-width:100%;margin:0 auto;text-align:left;box-shadow:0 8px 32px rgba(0,0,0,.5)';
+  inner.innerHTML = buildPDFHTML(a, sd);
+  const note = document.createElement('div');
+  note.style.cssText = 'color:#fff;font-family:Inter,sans-serif;font-size:13px;margin-bottom:12px;text-align:center';
+  note.textContent = '📄 Generating your PDF report...';
+  overlay.appendChild(note);
+  overlay.appendChild(inner);
+  document.body.appendChild(overlay);
   const filename = `EfCalculator_${(a.name||'Report').replace(/[^\w]/g,'_')}_${new Date().toISOString().slice(0,10)}.pdf`;
-  setTimeout(()=>{
+  // wait 2 frames for layout, then capture
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
     html2pdf().set({
       margin: 8,
       filename,
       image: { type:'jpeg', quality:0.95 },
-      // no width/windowWidth — let html2canvas measure the live element
       html2canvas: { scale:2, useCORS:true, backgroundColor:'#ffffff', logging:false },
       jsPDF: { unit:'mm', format:'a4', orientation:'portrait', compress:true },
       pagebreak: { mode:['css','legacy'] }
-    }).from(wrap).save().then(()=>{
-      if(wrap.parentNode) wrap.parentNode.removeChild(wrap);
+    }).from(inner).save().then(()=>{
+      if(overlay.parentNode) overlay.parentNode.removeChild(overlay);
       toast('✅ PDF downloaded');
     }).catch(err=>{
-      if(wrap.parentNode) wrap.parentNode.removeChild(wrap);
+      console.error('PDF error:', err);
+      if(overlay.parentNode) overlay.parentNode.removeChild(overlay);
       toast('❌ PDF failed: '+(err.message||err));
     });
-  }, 200);
+  }));
 }
 
 // ═══════════════════════════════════════════════════════════════
