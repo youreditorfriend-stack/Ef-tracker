@@ -1,0 +1,1187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+<meta name="theme-color" content="#0D0D0D"/>
+<title>Ef Calculator — Financial Health for Freelancers</title>
+<meta name="description" content="A quick financial health calculator for video editors and freelancers. Get your score, stage, and personalized recommendations."/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0A0A0A;
+  --bg-card:#161616;
+  --bg-card2:#1F1F1F;
+  --bg-input:#0F0F0F;
+  --border:#262626;
+  --accent:#F97316;
+  --accent2:#FB923C;
+  --accent-dim:rgba(249,115,22,.15);
+  --amber:#F59E0B;
+  --amber-dim:rgba(245,158,11,.12);
+  --green:#22C55E;
+  --green-dim:rgba(34,197,94,.12);
+  --red:#EF4444;
+  --red-dim:rgba(239,68,68,.12);
+  --blue:#3B82F6;
+  --purple:#A855F7;
+  --pink:#EC4899;
+  --muted:#6B7280;
+  --text:#F9FAFB;
+  --text2:#9CA3AF;
+  --text3:#4B5563;
+  --r-sm:8px;--r-md:14px;--r-lg:20px;--r-xl:28px;
+  --gap:16px;--gap-sm:10px;
+  --font:'Inter',system-ui,sans-serif;
+  --trans:.2s ease;
+}
+html,body{height:100%;background:radial-gradient(ellipse at top,#1a0e05 0%,var(--bg) 50%);color:var(--text);font-family:var(--font);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+button{font-family:var(--font)}
+
+#app{display:flex;flex-direction:column;min-height:100dvh;max-width:560px;margin:0 auto;position:relative}
+
+/* HEADER */
+#header{position:sticky;top:0;z-index:50;background:rgba(10,10,10,.92);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid var(--border);padding:14px var(--gap) 12px}
+.brand{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.brand-name{font-size:18px;font-weight:800;letter-spacing:-.02em}
+.brand-name span{color:var(--accent)}
+.brand-step{font-size:11px;color:var(--text2);font-weight:500;text-transform:uppercase;letter-spacing:.08em}
+.progress-bar{height:4px;background:var(--border);border-radius:2px;overflow:hidden;position:relative}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--amber));border-radius:2px;transition:width .5s cubic-bezier(.4,0,.2,1);box-shadow:0 0 8px var(--accent-dim)}
+
+/* CONTAINER */
+#main{flex:1;padding:24px var(--gap) 100px;overflow-x:hidden}
+
+/* STEP HEADER */
+.step-h{margin-bottom:24px}
+.step-num{display:inline-block;background:var(--accent-dim);color:var(--accent);font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;letter-spacing:.06em;text-transform:uppercase}
+.step-title{font-size:26px;font-weight:800;line-height:1.15;margin-top:10px;letter-spacing:-.02em}
+.step-sub{font-size:14px;color:var(--text2);margin-top:8px;line-height:1.5}
+
+/* CARDS */
+.card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-md);padding:var(--gap);margin-bottom:var(--gap-sm)}
+.glow{box-shadow:0 0 40px var(--accent-dim);border-color:var(--accent)}
+
+/* NUM CONTROL (slider + number) */
+.num-ctrl{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-md);padding:14px var(--gap);margin-bottom:12px;transition:border-color var(--trans)}
+.num-ctrl:focus-within{border-color:var(--accent)}
+.num-top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
+.num-lbl{font-size:13px;font-weight:500;color:var(--text2);flex:1;min-width:0}
+.num-display{background:var(--bg-input);border:1.5px solid var(--border);border-radius:var(--r-sm);color:var(--accent);font-family:var(--font);font-size:15px;font-weight:700;padding:6px 10px;width:120px;text-align:right;outline:none;transition:all var(--trans);-moz-appearance:textfield}
+.num-display::-webkit-outer-spin-button,.num-display::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.num-display:focus{border-color:var(--accent);background:var(--accent-dim)}
+.num-prefix{font-size:13px;color:var(--text2);margin-right:-6px}
+.num-row{display:flex;align-items:center;gap:8px}
+.range-wrap{position:relative;height:24px;display:flex;align-items:center}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:6px;border-radius:3px;background:linear-gradient(90deg,var(--accent) 0%,var(--accent) var(--p,0%),var(--border) var(--p,0%));outline:none;cursor:pointer}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:#fff;cursor:pointer;box-shadow:0 0 0 4px var(--accent),0 0 14px var(--accent-dim);border:none}
+input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;background:#fff;cursor:pointer;box-shadow:0 0 0 4px var(--accent);border:none}
+.range-marks{display:flex;justify-content:space-between;font-size:10px;color:var(--text3);margin-top:6px;font-weight:500}
+
+/* OPTION CARDS */
+.opt-grid{display:grid;gap:10px;margin-bottom:14px}
+.opt{background:var(--bg-card);border:2px solid var(--border);border-radius:var(--r-md);padding:14px;cursor:pointer;transition:all var(--trans);position:relative}
+.opt:hover{border-color:var(--accent);transform:translateY(-1px)}
+.opt.sel{border-color:var(--accent);background:var(--accent-dim)}
+.opt.sel::after{content:'✓';position:absolute;top:14px;right:14px;width:22px;height:22px;background:var(--accent);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700}
+.opt-title{font-size:14px;font-weight:600}
+.opt-sub{font-size:12px;color:var(--text2);margin-top:3px}
+
+/* INPUT (text/email/phone) */
+.field{margin-bottom:14px}
+.field-lbl{display:block;font-size:11px;font-weight:600;color:var(--text2);margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em}
+.input{background:var(--bg-input);border:1.5px solid var(--border);border-radius:var(--r-sm);color:var(--text);font-family:var(--font);font-size:15px;padding:12px 14px;width:100%;outline:none;transition:all var(--trans)}
+.input:focus{border-color:var(--accent);background:var(--accent-dim)}
+.input-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.phone-row{display:flex;gap:8px}
+.phone-row .input.cc{width:80px;flex-shrink:0}
+
+/* CUSTOM EXPENSE ROWS */
+.custom-row{display:flex;gap:8px;margin-bottom:8px;align-items:stretch}
+.custom-row .input{flex:1}
+.custom-row .input.amt{max-width:120px}
+.del-btn{background:var(--red-dim);border:none;color:var(--red);width:42px;border-radius:var(--r-sm);cursor:pointer;font-size:18px;transition:all var(--trans)}
+.del-btn:hover{background:var(--red);color:#fff}
+.add-btn{background:var(--accent-dim);border:1.5px dashed var(--accent);color:var(--accent);font-weight:600;font-size:14px;padding:12px;border-radius:var(--r-md);width:100%;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all var(--trans)}
+.add-btn:hover{background:var(--accent);color:#fff;border-style:solid}
+
+/* CHIPS */
+.chip-row{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px}
+.chip{padding:8px 14px;border-radius:20px;border:1.5px solid var(--border);font-size:13px;font-weight:500;cursor:pointer;color:var(--text2);transition:all var(--trans);background:var(--bg-card)}
+.chip.sel{background:var(--accent-dim);border-color:var(--accent);color:var(--accent)}
+
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:14px 22px;border-radius:var(--r-md);border:none;font-family:var(--font);font-size:14px;font-weight:600;cursor:pointer;transition:all var(--trans);text-decoration:none}
+.btn-primary{background:var(--accent);color:#fff;box-shadow:0 4px 16px var(--accent-dim)}
+.btn-primary:hover{background:#ea6a0a;transform:translateY(-1px)}
+.btn-primary:disabled{opacity:.4;cursor:not-allowed;transform:none}
+.btn-secondary{background:var(--bg-card2);color:var(--text);border:1px solid var(--border)}
+.btn-secondary:hover{border-color:var(--accent);color:var(--accent)}
+.btn-ghost{background:transparent;color:var(--text2)}
+.btn-full{width:100%}
+.btn-lg{padding:16px 26px;font-size:15px}
+
+/* BOTTOM NAV (Back / Continue) */
+#step-nav{position:fixed;left:0;right:0;bottom:0;padding:14px var(--gap);background:linear-gradient(to top,var(--bg) 60%,transparent);display:flex;gap:10px;justify-content:center;z-index:40}
+#step-nav>div{display:flex;gap:10px;max-width:560px;width:100%}
+
+/* TOAST */
+#toast{position:fixed;bottom:100px;left:50%;transform:translateX(-50%) translateY(30px);background:var(--bg-card2);color:var(--text);padding:12px 22px;border-radius:30px;font-size:13px;font-weight:500;border:1px solid var(--border);opacity:0;pointer-events:none;transition:all .3s ease;z-index:300;white-space:nowrap;box-shadow:0 8px 24px rgba(0,0,0,.4)}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* WELCOME / SIGN IN */
+.welcome-hero{text-align:center;padding:30px 0 24px}
+.welcome-emoji{font-size:64px;margin-bottom:18px;filter:drop-shadow(0 4px 20px var(--accent-dim))}
+.welcome-title{font-size:32px;font-weight:900;line-height:1.1;letter-spacing:-.03em;margin-bottom:12px}
+.welcome-title span{background:linear-gradient(90deg,var(--accent),var(--amber));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.welcome-sub{font-size:15px;color:var(--text2);margin-bottom:24px}
+.feat-list{text-align:left;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-md);padding:16px;margin-bottom:24px}
+.feat-item{display:flex;gap:12px;padding:8px 0;align-items:center}
+.feat-ico{width:32px;height:32px;border-radius:50%;background:var(--accent-dim);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:16px}
+.feat-txt{font-size:13px;color:var(--text2)}
+.feat-txt strong{color:var(--text);font-weight:600}
+#g-signin-wrap{display:flex;justify-content:center;margin:20px 0}
+.signin-note{font-size:11px;color:var(--text3);text-align:center;margin-top:12px}
+
+/* RESULT SCREEN */
+.score-hero{background:linear-gradient(135deg,#1a1209 0%,#1a0d05 100%);border:1px solid var(--accent);border-radius:var(--r-xl);padding:28px 22px;text-align:center;margin-bottom:var(--gap);position:relative;overflow:hidden}
+.score-hero::before{content:'';position:absolute;top:-60px;right:-60px;width:180px;height:180px;background:var(--accent-dim);border-radius:50%;filter:blur(50px)}
+.score-hero::after{content:'';position:absolute;bottom:-80px;left:-40px;width:160px;height:160px;background:rgba(245,158,11,.12);border-radius:50%;filter:blur(60px)}
+.score-ring-wrap{position:relative;width:170px;height:170px;margin:0 auto 16px;z-index:2}
+.score-ring{transform:rotate(-90deg)}
+.score-ring-bg{fill:none;stroke:var(--border);stroke-width:10}
+.score-ring-fg{fill:none;stroke:url(#gradOrange);stroke-width:10;stroke-linecap:round;transition:stroke-dashoffset 1s cubic-bezier(.4,0,.2,1)}
+.score-num{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;z-index:3}
+.score-num-big{font-size:48px;font-weight:900;line-height:1;letter-spacing:-.04em}
+.score-num-of{font-size:13px;color:var(--text2);margin-top:2px}
+.score-stage-lbl{font-size:20px;font-weight:800;margin-bottom:6px;z-index:2;position:relative}
+.score-stage-sub{font-size:13px;color:var(--text2);z-index:2;position:relative}
+
+.bench-card{background:var(--bg-card);border:1px solid var(--accent);border-radius:var(--r-md);padding:16px;margin-bottom:var(--gap);text-align:center}
+.bench-pct{font-size:26px;font-weight:900;color:var(--accent);letter-spacing:-.02em}
+.bench-txt{font-size:13px;color:var(--text2);margin-top:6px;line-height:1.5}
+.bench-num{font-weight:700;color:var(--text)}
+
+.tbl-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:var(--gap)}
+.tbl{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-md);padding:14px}
+.tbl-title{font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px}
+.tbl-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;font-size:13px}
+.tbl-row .l{color:var(--text2)}
+.tbl-row .v{font-weight:700}
+.tbl-row.profit .v{color:var(--green)}
+.tbl-row.expense .v{color:var(--red)}
+
+.score-breakdown{margin-bottom:var(--gap)}
+.score-breakdown .card{padding:var(--gap)}
+.bd-row{margin-bottom:10px}
+.bd-row:last-child{margin-bottom:0}
+.bd-top{display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px}
+.bd-lbl{color:var(--text2);font-weight:500}
+.bd-val{font-weight:700}
+.bd-track{height:6px;background:var(--border);border-radius:3px;overflow:hidden}
+.bd-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--accent),var(--amber));transition:width .5s ease}
+
+.chart-wrap{position:relative;height:240px;margin-top:10px}
+
+.rec-card{display:flex;gap:12px;align-items:flex-start;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-md);padding:14px;margin-bottom:10px}
+.rec-ico{font-size:22px;flex-shrink:0;margin-top:1px}
+.rec-text{font-size:13px;color:var(--text2);line-height:1.5}
+.rec-text strong{color:var(--text);font-weight:600}
+
+.section-title{font-size:13px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.08em;margin:24px 0 12px;padding-left:2px}
+
+.action-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:30px}
+.action-grid .btn-full{grid-column:1/-1}
+
+.stage-tag{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;font-size:12px;font-weight:700}
+.stg-Elite{background:rgba(168,85,247,.15);color:var(--purple)}
+.stg-Thriving{background:rgba(34,197,94,.12);color:var(--green)}
+.stg-Growing{background:rgba(249,115,22,.15);color:var(--accent)}
+.stg-Stable{background:rgba(59,130,246,.12);color:var(--blue)}
+.stg-AtRisk{background:rgba(245,158,11,.12);color:var(--amber)}
+.stg-Critical{background:rgba(239,68,68,.12);color:var(--red)}
+
+/* PROFILE BADGE */
+.user-badge{display:flex;align-items:center;gap:10px;background:var(--bg-card);border:1px solid var(--border);border-radius:30px;padding:6px 14px 6px 6px}
+.user-badge img{width:28px;height:28px;border-radius:50%}
+.user-badge-name{font-size:12px;font-weight:600}
+
+/* PRINT */
+@media print{
+  body{background:#fff;color:#111}
+  #header,#step-nav,#toast,.action-grid,button{display:none!important}
+  #app{max-width:none}
+  #main{padding:0}
+  .card,.tbl,.bench-card,.rec-card{break-inside:avoid;background:#f9f9f9;border:1px solid #ddd;color:#111}
+  .score-hero{background:#fff8f1;border:2px solid var(--accent);color:#111}
+  .num-display,.score-num-big,.bd-val,.tbl-row .v,.bench-pct{color:#111!important}
+  .num-display{background:#fff;border:1px solid #ccc}
+  .step-title,.score-stage-lbl,.bd-lbl,.tbl-row .l,.welcome-title{color:#111!important}
+  .step-sub,.rec-text,.tbl-title,.bench-txt,.score-num-of{color:#444!important}
+}
+
+/* MOBILE TWEAKS */
+@media(max-width:380px){
+  .welcome-title{font-size:26px}
+  .step-title{font-size:22px}
+  .num-display{width:100px;font-size:14px}
+  .tbl-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute"><defs><linearGradient id="gradOrange" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#F97316"/><stop offset="100%" stop-color="#F59E0B"/></linearGradient></defs></svg>
+
+<div id="app">
+  <!-- HEADER -->
+  <header id="header">
+    <div class="brand">
+      <div class="brand-name">Ef <span>Calculator</span></div>
+      <div id="brand-step-info">
+        <div class="brand-step" id="step-counter">Step 1 of 10</div>
+      </div>
+    </div>
+    <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:10%"></div></div>
+  </header>
+
+  <!-- MAIN STEP CONTAINER -->
+  <main id="main"></main>
+
+  <!-- STEP NAV -->
+  <div id="step-nav"><div id="step-nav-inner"></div></div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<script>
+'use strict';
+
+// ═══════════════════════════════════════════════════════════════
+// CONFIG — wire these up after creating Google OAuth client + Apps Script
+// ═══════════════════════════════════════════════════════════════
+const GOOGLE_CLIENT_ID = 'YOUR_GOOGLE_OAUTH_CLIENT_ID.apps.googleusercontent.com';
+const APPS_SCRIPT_URL  = 'YOUR_APPS_SCRIPT_WEB_APP_URL';
+const STORE_KEY        = 'ef_calc_v1';
+
+// ═══════════════════════════════════════════════════════════════
+// REAL-DATA BENCHMARK CONSTANTS
+// ═══════════════════════════════════════════════════════════════
+const FREELANCER_POP_IN = 15_000_000; // ~15M freelancers in India (NASSCOM 2024 est)
+const WORLD_POP = 8_100_000_000;
+const PERCENTILE_MAP = [
+  {s:0,p:0},{s:25,p:12},{s:40,p:30},{s:55,p:55},{s:70,p:78},{s:85,p:94},{s:100,p:99.5}
+];
+function scoreToPercentile(score){
+  score = Math.max(0,Math.min(100,score));
+  for(let i=0;i<PERCENTILE_MAP.length-1;i++){
+    const a=PERCENTILE_MAP[i], b=PERCENTILE_MAP[i+1];
+    if(score>=a.s && score<=b.s){
+      const t=(score-a.s)/(b.s-a.s);
+      return a.p+(b.p-a.p)*t;
+    }
+  }
+  return 99.5;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════════════
+const fmtRs = n => '₹' + Math.round(n||0).toLocaleString('en-IN');
+const fmtK = n => { n=Math.round(n||0); if(n>=10000000) return '₹'+(n/10000000).toFixed(1).replace(/\.0$/,'')+'Cr'; if(n>=100000) return '₹'+(n/100000).toFixed(1).replace(/\.0$/,'')+'L'; if(n>=1000) return '₹'+(n/1000).toFixed(1).replace(/\.0$/,'')+'k'; return fmtRs(n); };
+const fmtN = n => Math.round(n||0).toLocaleString('en-IN');
+const fmtPct = n => (n||0).toFixed(1)+'%';
+const clamp = (v,mn,mx) => Math.min(mx,Math.max(mn,v||0));
+const lerp = (a,b,t) => a+(b-a)*t;
+const uid = () => 'x_'+Date.now()+'_'+Math.random().toString(36).slice(2,5);
+
+// ═══════════════════════════════════════════════════════════════
+// STAGES
+// ═══════════════════════════════════════════════════════════════
+const STAGES = [
+  {min:85,key:'Elite',     label:'🏆 Elite',     cls:'stg-Elite',    desc:'Top 1% — financial mastery'},
+  {min:70,key:'Thriving',  label:'💎 Thriving',  cls:'stg-Thriving', desc:'Excellent — keep building'},
+  {min:55,key:'Growing',   label:'📈 Growing',   cls:'stg-Growing',  desc:'On the right path'},
+  {min:40,key:'Stable',    label:'⚖️ Stable',    cls:'stg-Stable',   desc:'Hold ground, then optimize'},
+  {min:25,key:'AtRisk',    label:'⚠️ At Risk',   cls:'stg-AtRisk',   desc:'Time to take action'},
+  {min:0, key:'Critical',  label:'🚨 Critical',  cls:'stg-Critical', desc:'Start small, build steady'}
+];
+function getStage(score){ return STAGES.find(s=>score>=s.min) || STAGES[STAGES.length-1]; }
+
+const BENCHMARK_TONES = {
+  Elite: [
+    "🏆 You're in the elite top {top}% of Indian freelancers. Beating ~{N} people. Mentor others. Scale your systems.",
+    "Top {top}% in India. You've outperformed roughly {N} freelancers. Time to invest in long-term assets."
+  ],
+  Thriving: [
+    "💎 You're financially healthier than {pct}% of Indian freelancers — that's ahead of {N} people. Keep stacking.",
+    "{pct}% in India. You beat {N} freelancers. Lock in your 6-month buffer and start a SIP."
+  ],
+  Growing: [
+    "📈 You're doing better than {pct}% — ahead of {N} freelancers in India. One rate hike could level you up.",
+    "Above average. {N} freelancers earn less consistently than you. Focus: build emergency fund."
+  ],
+  Stable: [
+    "⚖️ You're better off than {pct}% in India ({N} people). Don't get comfortable — push for growth.",
+    "Mid-tier solid. Better than {N} freelancers — but income diversity will move you up."
+  ],
+  AtRisk: [
+    "⚠️ You're ahead of {N} freelancers but the gap is closing fast. Cut one expense this month, raise one rate.",
+    "{pct}% percentile — still ahead of {N} people. Plug your biggest leak this week."
+  ],
+  Critical: [
+    "🚨 Tough patch. But you're already ahead of {N} freelancers who don't even track this. Small wins compound.",
+    "Start now: track every rupee. You'll cross {N} freelancers faster than you think."
+  ]
+};
+function benchmarkText(stage, score){
+  const pct = scoreToPercentile(score);
+  const N = Math.round(FREELANCER_POP_IN * pct/100);
+  const top = (100-pct).toFixed(1);
+  const arr = BENCHMARK_TONES[stage.key] || BENCHMARK_TONES.Stable;
+  const tmpl = arr[Math.floor(Math.random()*arr.length)];
+  return tmpl.replace('{pct}',pct.toFixed(1))
+             .replace('{top}',top)
+             .replace(/\{N\}/g, fmtN(N));
+}
+
+// ═══════════════════════════════════════════════════════════════
+// APP STATE
+// ═══════════════════════════════════════════════════════════════
+const Q = {
+  WELCOME:0, PHONE:1, ABOUT:2, INCOME:3, EXPENSE:4, LOAN:5, INVEST:6, EMERGENCY:7, GOAL:8, RESULT:9
+};
+const TOTAL_STEPS = 10;
+
+const AppState = {
+  user: null,
+  step: Q.WELCOME,
+  answers: {
+    whatsappCC: '+91',
+    whatsapp: '',
+    name: '',
+    age: 25,
+    experience: 2,
+    employment: 'freelance',
+    // income
+    mainJobMonthly: 0,
+    videoRate: 0,
+    videoQty: 0,
+    thumbRate: 0,
+    thumbQty: 0,
+    consultRate: 0,
+    consultDays: 0,
+    otherInc: 0,
+    // expenses (fixed)
+    rent: 0, food: 0, internet: 0, electricity: 0, phone: 0,
+    software: 0, travel: 0,
+    customExpenses: [], // [{id,name,amount}]
+    // loan
+    hasLoan: false, emi: 0, loanMonths: 0,
+    // invest
+    sip: 0, stocks: 0, otherInv: 0,
+    // emergency
+    emergencyFund: 0,
+    // goals
+    targetIncome: 80000, savingsGoal: 500000
+  },
+
+  load(){
+    try{
+      const raw = JSON.parse(localStorage.getItem(STORE_KEY));
+      if(raw){
+        if(raw.user) this.user = raw.user;
+        if(raw.answers) this.answers = Object.assign({},this.answers,raw.answers);
+        if(typeof raw.step==='number') this.step = raw.step;
+      }
+    }catch{}
+  },
+  save(){
+    localStorage.setItem(STORE_KEY, JSON.stringify({user:this.user,answers:this.answers,step:this.step}));
+  },
+  reset(){
+    localStorage.removeItem(STORE_KEY);
+    location.reload();
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════
+// COMPUTED FINANCIALS + SCORE
+// ═══════════════════════════════════════════════════════════════
+function computeFinancials(a){
+  const videoEarn   = (a.videoRate||0)*(a.videoQty||0);
+  const thumbEarn   = (a.thumbRate||0)*(a.thumbQty||0);
+  const consultEarn = (a.consultRate||0)*(a.consultDays||0);
+  const monthlyIncome = (a.mainJobMonthly||0) + videoEarn + thumbEarn + consultEarn + (a.otherInc||0);
+
+  const fixedExp = (a.rent||0)+(a.food||0)+(a.internet||0)+(a.electricity||0)+(a.phone||0)+(a.software||0)+(a.travel||0);
+  const customExp = (a.customExpenses||[]).reduce((s,x)=>s+(x.amount||0),0);
+  const monthlyExpense = fixedExp + customExp + (a.hasLoan?(a.emi||0):0);
+
+  const monthlyInvest = (a.sip||0)+(a.stocks||0)+(a.otherInv||0);
+
+  const monthlyProfit = monthlyIncome - monthlyExpense - monthlyInvest;
+  const yearlyIncome = monthlyIncome*12;
+  const yearlyExpense = monthlyExpense*12;
+  const yearlyProfit = monthlyProfit*12;
+  const yearlyInvest = monthlyInvest*12;
+
+  return {monthlyIncome,monthlyExpense,monthlyInvest,monthlyProfit,yearlyIncome,yearlyExpense,yearlyProfit,yearlyInvest,videoEarn,thumbEarn,consultEarn,fixedExp,customExp};
+}
+
+function computeScore(a){
+  const f = computeFinancials(a);
+  // 1. Profit margin (25)
+  const margin = f.monthlyIncome>0 ? (f.monthlyIncome-f.monthlyExpense)/f.monthlyIncome : -1;
+  const profitScore = clamp(margin/0.40, 0, 1) * 25;
+
+  // 2. Savings rate (20)
+  const savingsRate = f.monthlyIncome>0 ? f.monthlyInvest/f.monthlyIncome : 0;
+  const savingsScore = clamp(savingsRate/0.20, 0, 1) * 20;
+
+  // 3. Emergency fund (20) — 6 months of expenses = full
+  const efTarget = f.monthlyExpense*6;
+  const efScore = efTarget>0 ? clamp((a.emergencyFund||0)/efTarget, 0, 1)*20 : (a.emergencyFund>0?20:10);
+
+  // 4. Debt health (15) — no EMI=15, 50%+ of income on EMI=0
+  const emi = a.hasLoan ? (a.emi||0) : 0;
+  const emiRatio = f.monthlyIncome>0 ? emi/f.monthlyIncome : 0;
+  const debtScore = clamp(1 - emiRatio/0.50, 0, 1) * 15;
+
+  // 5. Goal progress (10)
+  const goalScore = (a.targetIncome>0) ? clamp(f.monthlyIncome/a.targetIncome, 0, 1)*10 : 5;
+
+  // 6. Income diversity (10)
+  let streams = 0;
+  if(a.mainJobMonthly>0) streams++;
+  if(a.videoRate*a.videoQty>0) streams++;
+  if(a.thumbRate*a.thumbQty>0) streams++;
+  if(a.consultRate*a.consultDays>0) streams++;
+  if(a.otherInc>0) streams++;
+  const divScore = streams>=4?10 : streams===3?8 : streams===2?5 : streams===1?2 : 0;
+
+  const total = profitScore+savingsScore+efScore+debtScore+goalScore+divScore;
+  const score = Math.round(total);
+  const stage = getStage(score);
+
+  return {
+    score, stage,
+    breakdown: [
+      {key:'Profit Margin',  val:profitScore,  max:25, pct: profitScore/25*100},
+      {key:'Savings Rate',   val:savingsScore, max:20, pct: savingsScore/20*100},
+      {key:'Emergency Fund', val:efScore,      max:20, pct: efScore/20*100},
+      {key:'Debt Health',    val:debtScore,    max:15, pct: debtScore/15*100},
+      {key:'Goal Progress',  val:goalScore,    max:10, pct: goalScore/10*100},
+      {key:'Income Diversity',val:divScore,    max:10, pct: divScore/10*100}
+    ],
+    financials: f
+  };
+}
+
+function recommendations(a, scoreData){
+  const recs = [];
+  const f = scoreData.financials;
+  if(f.monthlyProfit<0){
+    recs.push({ico:'⚠️',txt:`<strong>Deficit alert.</strong> You're spending ${fmtRs(-f.monthlyProfit)} more than you earn each month. Cut your biggest variable expense or raise one rate by 20%.`});
+  }
+  if(a.hasLoan && a.emi/f.monthlyIncome>0.30){
+    recs.push({ico:'🏦',txt:`<strong>Heavy EMI burden.</strong> Your EMI is ${Math.round(a.emi/f.monthlyIncome*100)}% of income. Refinance or pre-pay if possible.`});
+  }
+  const efTarget = f.monthlyExpense*6;
+  if(a.emergencyFund<efTarget){
+    recs.push({ico:'🛟',txt:`<strong>Build emergency fund.</strong> Aim for ${fmtRs(efTarget)} (6 months of expenses). You have ${fmtRs(a.emergencyFund)}. Set aside ${fmtRs(Math.max(5000,(efTarget-a.emergencyFund)/12))}/month.`});
+  }
+  if(f.monthlyInvest/Math.max(f.monthlyIncome,1)<0.10 && f.monthlyProfit>0){
+    recs.push({ico:'📈',txt:`<strong>Invest more.</strong> You're saving ${(f.monthlyInvest/Math.max(f.monthlyIncome,1)*100).toFixed(0)}%. Target 20%. Start an SIP of ${fmtRs(f.monthlyIncome*0.10)}/month.`});
+  }
+  let streams = 0;
+  if(a.mainJobMonthly>0)streams++; if(a.videoRate*a.videoQty>0)streams++; if(a.thumbRate*a.thumbQty>0)streams++; if(a.consultRate*a.consultDays>0)streams++; if(a.otherInc>0)streams++;
+  if(streams<2){
+    recs.push({ico:'🎯',txt:`<strong>Diversify income.</strong> You have ${streams} income source. Add thumbnails, consulting, or short-form editing to de-risk.`});
+  }
+  if(a.videoRate>0 && a.videoRate<2500){
+    recs.push({ico:'💰',txt:`<strong>Your video rate is low.</strong> Median for Indian editors with ${a.experience||1}+ years is ₹3,000–₹5,000/video. Test a ₹500 hike on your next quote.`});
+  }
+  if(scoreData.score>=70 && f.monthlyProfit>20000){
+    recs.push({ico:'🚀',txt:`<strong>You're crushing it.</strong> Consider a ${fmtRs(f.monthlyProfit*0.30)} monthly investment in index funds — compound this for 10 years.`});
+  }
+  if(recs.length===0){
+    recs.push({ico:'✅',txt:`<strong>All key metrics look healthy.</strong> Document your system — it's your moat.`});
+  }
+  return recs.slice(0,5);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// REUSABLE: NUMBER CONTROL (slider + editable input)
+// ═══════════════════════════════════════════════════════════════
+function numControl({key, label, min=0, max=100000, step=100, value=0, prefix='₹', suffix=''}){
+  const pct = max>min ? ((value-min)/(max-min))*100 : 0;
+  return `
+<div class="num-ctrl" data-num-key="${key}">
+  <div class="num-top">
+    <div class="num-lbl">${label}</div>
+    <div class="num-row">
+      ${prefix?`<span class="num-prefix">${prefix}</span>`:''}
+      <input type="number" class="num-display" min="${min}" max="${max*5}" value="${value}" data-num-input="${key}" inputmode="numeric"/>
+      ${suffix?`<span class="num-prefix">${suffix}</span>`:''}
+    </div>
+  </div>
+  <div class="range-wrap">
+    <input type="range" min="${min}" max="${max}" step="${step}" value="${value}" data-num-range="${key}" style="--p:${pct}%"/>
+  </div>
+  <div class="range-marks"><span>${prefix||''}${min}</span><span>${prefix||''}${fmtN(max)}${suffix?' '+suffix:''}</span></div>
+</div>`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// STEP RENDERERS
+// ═══════════════════════════════════════════════════════════════
+function renderWelcome(){
+  const signedIn = !!AppState.user;
+  return `
+<div class="welcome-hero">
+  <div class="welcome-emoji">💸</div>
+  <div class="welcome-title">Where do you really <span>stand</span> financially?</div>
+  <div class="welcome-sub">Answer a few questions. Get a real financial-health score, compared against millions of Indian freelancers.</div>
+</div>
+<div class="feat-list">
+  <div class="feat-item"><div class="feat-ico">📊</div><div class="feat-txt"><strong>Personal score (0–100)</strong> across 6 financial dimensions</div></div>
+  <div class="feat-item"><div class="feat-ico">🌍</div><div class="feat-txt"><strong>Real benchmark</strong> against 15M Indian freelancers</div></div>
+  <div class="feat-item"><div class="feat-ico">🎚️</div><div class="feat-txt"><strong>Adjust live</strong> — drag sliders to see what changes your score</div></div>
+  <div class="feat-item"><div class="feat-ico">📄</div><div class="feat-txt"><strong>Downloadable report</strong> with personalized recommendations</div></div>
+</div>
+${signedIn?`
+<div class="card glow" style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+  ${AppState.user.picture?`<img src="${AppState.user.picture}" width="40" height="40" style="border-radius:50%"/>`:''}
+  <div style="flex:1">
+    <div style="font-size:14px;font-weight:700">${AppState.user.name||'Welcome'}</div>
+    <div style="font-size:12px;color:var(--text2)">${AppState.user.email||''}</div>
+  </div>
+  <button class="btn btn-ghost" id="btn-signout" style="padding:6px 12px">Sign out</button>
+</div>`:`
+<div id="g-signin-wrap">
+  <div id="g_id_onload" data-client_id="${GOOGLE_CLIENT_ID}" data-callback="handleCredentialResponse" data-auto_prompt="false"></div>
+  <div class="g_id_signin" data-type="standard" data-theme="filled_black" data-size="large" data-text="continue_with" data-shape="rectangular" data-logo_alignment="left"></div>
+</div>
+<div class="signin-note">We use your Google account only to label your report. No data shared.</div>`}`;
+}
+
+function renderPhone(){
+  const a=AppState.answers;
+  return `
+<div class="step-h">
+  <span class="step-num">Step 2 of ${TOTAL_STEPS}</span>
+  <div class="step-title">Your WhatsApp number</div>
+  <div class="step-sub">We'll send your report to this number when ready. No spam, ever.</div>
+</div>
+<div class="field">
+  <label class="field-lbl">WhatsApp</label>
+  <div class="phone-row">
+    <input class="input cc" data-input="whatsappCC" value="${a.whatsappCC}" placeholder="+91"/>
+    <input class="input" data-input="whatsapp" type="tel" inputmode="numeric" value="${a.whatsapp}" placeholder="9876543210"/>
+  </div>
+</div>
+<div style="font-size:12px;color:var(--text3);text-align:center;margin-top:8px">🔒 Your number is stored only in your private record.</div>`;
+}
+
+function renderAbout(){
+  const a=AppState.answers;
+  const empOptions = [
+    {val:'freelance',title:'🎬 Freelance only',sub:'100% freelance income'},
+    {val:'part-hybrid',title:'💼 Part-time + Freelance',sub:'Side income from freelancing'},
+    {val:'full-hybrid',title:'🏢 Full-time job + Freelance',sub:'Salary + freelance projects'}
+  ];
+  return `
+<div class="step-h">
+  <span class="step-num">Step 3 of ${TOTAL_STEPS}</span>
+  <div class="step-title">About you</div>
+  <div class="step-sub">Quick context — helps personalize your benchmark.</div>
+</div>
+<div class="field">
+  <label class="field-lbl">Your name</label>
+  <input class="input" data-input="name" value="${a.name||AppState.user?.name||''}" placeholder="e.g. Janish"/>
+</div>
+<div class="input-grid">
+  <div class="field"><label class="field-lbl">Age</label><input class="input" type="number" data-input="age" value="${a.age}" min="14" max="100"/></div>
+  <div class="field"><label class="field-lbl">Years as video editor</label><input class="input" type="number" data-input="experience" value="${a.experience}" min="0" max="50"/></div>
+</div>
+<div class="field">
+  <label class="field-lbl">Current situation</label>
+  <div class="opt-grid">
+    ${empOptions.map(o=>`
+    <div class="opt ${a.employment===o.val?'sel':''}" data-opt="employment" data-val="${o.val}">
+      <div class="opt-title">${o.title}</div>
+      <div class="opt-sub">${o.sub}</div>
+    </div>`).join('')}
+  </div>
+</div>`;
+}
+
+function renderIncome(){
+  const a=AppState.answers;
+  return `
+<div class="step-h">
+  <span class="step-num">Step 4 of ${TOTAL_STEPS}</span>
+  <div class="step-title">Monthly income</div>
+  <div class="step-sub">Drag the sliders or click the numbers to type. Add only what applies.</div>
+</div>
+
+<div class="section-title">Salary / Day Job</div>
+${numControl({key:'mainJobMonthly',label:'Monthly salary (after tax)',min:0,max:300000,step:1000,value:a.mainJobMonthly})}
+
+<div class="section-title">Video Editing</div>
+${numControl({key:'videoRate',label:'Rate per video',min:0,max:50000,step:100,value:a.videoRate})}
+${numControl({key:'videoQty',label:'Videos per month',min:0,max:100,step:1,value:a.videoQty,prefix:'',suffix:'videos'})}
+
+<div class="section-title">Thumbnails</div>
+${numControl({key:'thumbRate',label:'Rate per thumbnail',min:0,max:10000,step:50,value:a.thumbRate})}
+${numControl({key:'thumbQty',label:'Thumbnails per month',min:0,max:300,step:1,value:a.thumbQty,prefix:'',suffix:'pcs'})}
+
+<div class="section-title">Consulting / Day Rate</div>
+${numControl({key:'consultRate',label:'Per day rate',min:0,max:50000,step:500,value:a.consultRate})}
+${numControl({key:'consultDays',label:'Days per month',min:0,max:30,step:1,value:a.consultDays,prefix:'',suffix:'days'})}
+
+<div class="section-title">Other</div>
+${numControl({key:'otherInc',label:'Other monthly income (₹)',min:0,max:200000,step:500,value:a.otherInc})}`;
+}
+
+function renderExpense(){
+  const a=AppState.answers;
+  return `
+<div class="step-h">
+  <span class="step-num">Step 5 of ${TOTAL_STEPS}</span>
+  <div class="step-title">Monthly expenses</div>
+  <div class="step-sub">Your fixed monthly outflow. Add custom items if your category is missing.</div>
+</div>
+
+${numControl({key:'rent',label:'🏠 Rent / Office',min:0,max:100000,step:500,value:a.rent})}
+${numControl({key:'food',label:'🍱 Food',min:0,max:50000,step:200,value:a.food})}
+${numControl({key:'internet',label:'📶 Internet',min:0,max:5000,step:50,value:a.internet})}
+${numControl({key:'electricity',label:'⚡ Electricity',min:0,max:10000,step:100,value:a.electricity})}
+${numControl({key:'phone',label:'📱 Phone bill',min:0,max:5000,step:50,value:a.phone})}
+${numControl({key:'software',label:'💻 Software / AI subscriptions',min:0,max:20000,step:100,value:a.software})}
+${numControl({key:'travel',label:'🚗 Travel / Fuel',min:0,max:30000,step:200,value:a.travel})}
+
+<div class="section-title">Custom expenses</div>
+<div id="custom-rows">${renderCustomRows()}</div>
+<button class="add-btn" id="btn-add-custom">+ Add custom expense</button>`;
+}
+
+function renderCustomRows(){
+  return (AppState.answers.customExpenses||[]).map(c=>`
+<div class="custom-row" data-cid="${c.id}">
+  <input class="input" placeholder="Expense name" value="${c.name||''}" data-cname="${c.id}"/>
+  <input class="input amt" type="number" placeholder="₹" value="${c.amount||''}" data-camount="${c.id}" inputmode="numeric"/>
+  <button class="del-btn" data-cdel="${c.id}">×</button>
+</div>`).join('');
+}
+
+function renderLoan(){
+  const a=AppState.answers;
+  return `
+<div class="step-h">
+  <span class="step-num">Step 6 of ${TOTAL_STEPS}</span>
+  <div class="step-title">Loans / EMI</div>
+  <div class="step-sub">Any active loan or monthly EMI commitment?</div>
+</div>
+<div class="opt-grid" style="grid-template-columns:1fr 1fr">
+  <div class="opt ${a.hasLoan?'sel':''}" data-opt="hasLoan" data-val="true"><div class="opt-title">Yes, I have EMI</div></div>
+  <div class="opt ${!a.hasLoan?'sel':''}" data-opt="hasLoan" data-val="false"><div class="opt-title">No loans</div></div>
+</div>
+<div id="loan-fields" style="${a.hasLoan?'':'display:none'}">
+  ${numControl({key:'emi',label:'Monthly EMI',min:0,max:100000,step:500,value:a.emi})}
+  ${numControl({key:'loanMonths',label:'Months remaining',min:0,max:360,step:1,value:a.loanMonths,prefix:'',suffix:'months'})}
+</div>`;
+}
+
+function renderInvest(){
+  const a=AppState.answers;
+  return `
+<div class="step-h">
+  <span class="step-num">Step 7 of ${TOTAL_STEPS}</span>
+  <div class="step-title">Monthly investments</div>
+  <div class="step-sub">SIPs, stocks, anything you put away monthly.</div>
+</div>
+${numControl({key:'sip',label:'📈 Mutual Fund / SIP',min:0,max:100000,step:500,value:a.sip})}
+${numControl({key:'stocks',label:'📊 Stocks / ETFs',min:0,max:100000,step:500,value:a.stocks})}
+${numControl({key:'otherInv',label:'💰 Other (FD, gold, crypto)',min:0,max:100000,step:500,value:a.otherInv})}`;
+}
+
+function renderEmergency(){
+  const a=AppState.answers;
+  return `
+<div class="step-h">
+  <span class="step-num">Step 8 of ${TOTAL_STEPS}</span>
+  <div class="step-title">Emergency fund</div>
+  <div class="step-sub">Total cash you can access immediately if income stops tomorrow.</div>
+</div>
+${numControl({key:'emergencyFund',label:'Total emergency fund',min:0,max:2000000,step:5000,value:a.emergencyFund})}
+<div style="font-size:12px;color:var(--text2);margin-top:6px;text-align:center">💡 Rule of thumb: 6× monthly expenses</div>`;
+}
+
+function renderGoal(){
+  const a=AppState.answers;
+  return `
+<div class="step-h">
+  <span class="step-num">Step 9 of ${TOTAL_STEPS}</span>
+  <div class="step-title">Your goals</div>
+  <div class="step-sub">Where you want to be — we'll measure progress against this.</div>
+</div>
+${numControl({key:'targetIncome',label:'🎯 Target monthly income',min:10000,max:500000,step:5000,value:a.targetIncome})}
+${numControl({key:'savingsGoal',label:'💰 Total savings goal (1 year)',min:0,max:5000000,step:25000,value:a.savingsGoal})}`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// RESULT SCREEN
+// ═══════════════════════════════════════════════════════════════
+let resultCharts = {breakdown:null, bar:null};
+function destroyResultCharts(){ Object.values(resultCharts).forEach(c=>c&&c.destroy()); resultCharts={breakdown:null,bar:null}; }
+
+function renderResult(){
+  destroyResultCharts();
+  const a=AppState.answers;
+  const sd = computeScore(a);
+  const f = sd.financials;
+  const benchTxt = benchmarkText(sd.stage, sd.score);
+  const recs = recommendations(a, sd);
+  const C = 502.4; // 2*PI*80
+  const offset = C - (C * sd.score/100);
+
+  setTimeout(()=>renderResultCharts(sd),60);
+
+  return `
+<div class="step-h" style="margin-bottom:14px">
+  <span class="step-num">Your Result</span>
+  <div class="step-title">Financial health snapshot</div>
+</div>
+
+<div class="score-hero">
+  <div class="score-ring-wrap">
+    <svg class="score-ring" width="170" height="170" viewBox="0 0 170 170">
+      <circle class="score-ring-bg" cx="85" cy="85" r="80"/>
+      <circle class="score-ring-fg" cx="85" cy="85" r="80" stroke-dasharray="${C}" stroke-dashoffset="${offset}"/>
+    </svg>
+    <div class="score-num">
+      <div class="score-num-big">${sd.score}</div>
+      <div class="score-num-of">/ 100</div>
+    </div>
+  </div>
+  <div class="stage-tag ${sd.stage.cls}" style="font-size:14px;padding:6px 14px;margin-bottom:8px">${sd.stage.label}</div>
+  <div class="score-stage-sub">${sd.stage.desc}</div>
+</div>
+
+<div class="bench-card">
+  <div class="bench-pct">${benchTxt.match(/\d+(\.\d+)?%/)?.[0]||''}</div>
+  <div class="bench-txt">${benchTxt}</div>
+</div>
+
+<div class="tbl-grid">
+  <div class="tbl">
+    <div class="tbl-title">📅 Monthly</div>
+    <div class="tbl-row"><span class="l">Income</span><span class="v">${fmtRs(f.monthlyIncome)}</span></div>
+    <div class="tbl-row expense"><span class="l">Expenses</span><span class="v">${fmtRs(f.monthlyExpense)}</span></div>
+    <div class="tbl-row"><span class="l">Investment</span><span class="v">${fmtRs(f.monthlyInvest)}</span></div>
+    <div class="tbl-row profit"><span class="l">Net Profit</span><span class="v">${fmtRs(f.monthlyProfit)}</span></div>
+  </div>
+  <div class="tbl">
+    <div class="tbl-title">📆 Yearly</div>
+    <div class="tbl-row"><span class="l">Income</span><span class="v">${fmtK(f.yearlyIncome)}</span></div>
+    <div class="tbl-row expense"><span class="l">Expenses</span><span class="v">${fmtK(f.yearlyExpense)}</span></div>
+    <div class="tbl-row"><span class="l">Investment</span><span class="v">${fmtK(f.yearlyInvest)}</span></div>
+    <div class="tbl-row profit"><span class="l">Net Profit</span><span class="v">${fmtK(f.yearlyProfit)}</span></div>
+  </div>
+</div>
+
+<div class="section-title">Score breakdown</div>
+<div class="card score-breakdown">
+  ${sd.breakdown.map(b=>`
+  <div class="bd-row">
+    <div class="bd-top"><span class="bd-lbl">${b.key}</span><span class="bd-val">${b.val.toFixed(0)} / ${b.max}</span></div>
+    <div class="bd-track"><div class="bd-fill" style="width:${b.pct}%"></div></div>
+  </div>`).join('')}
+</div>
+
+<div class="section-title">Income vs Expense vs Savings</div>
+<div class="card"><div class="chart-wrap"><canvas id="chart-bar"></canvas></div></div>
+
+<div class="section-title">💡 Personalized recommendations</div>
+${recs.map(r=>`<div class="rec-card"><div class="rec-ico">${r.ico}</div><div class="rec-text">${r.txt}</div></div>`).join('')}
+
+<div class="section-title">🎚️ Adjust live</div>
+<div style="font-size:12px;color:var(--text2);margin-bottom:10px">Drag any slider to see how your score moves.</div>
+${numControl({key:'mainJobMonthly',label:'Salary',min:0,max:300000,step:1000,value:a.mainJobMonthly})}
+${numControl({key:'videoRate',label:'Rate per video',min:0,max:50000,step:100,value:a.videoRate})}
+${numControl({key:'videoQty',label:'Videos per month',min:0,max:100,step:1,value:a.videoQty,prefix:'',suffix:'videos'})}
+${numControl({key:'rent',label:'Rent',min:0,max:100000,step:500,value:a.rent})}
+${numControl({key:'food',label:'Food',min:0,max:50000,step:200,value:a.food})}
+${numControl({key:'sip',label:'SIP / month',min:0,max:100000,step:500,value:a.sip})}
+${numControl({key:'emergencyFund',label:'Emergency fund',min:0,max:2000000,step:5000,value:a.emergencyFund})}
+
+<div class="section-title">Take action</div>
+<div class="action-grid">
+  <button class="btn btn-primary" id="btn-pdf">📥 Download PDF</button>
+  <button class="btn btn-secondary" id="btn-wa">📲 Send to WhatsApp</button>
+  <button class="btn btn-primary btn-full btn-lg" id="btn-submit">💾 Save my report</button>
+  <button class="btn btn-ghost btn-full" id="btn-restart" style="margin-top:8px;font-size:13px">↻ Start over</button>
+</div>`;
+}
+
+function renderResultCharts(sd){
+  const f = sd.financials;
+  const canvas = document.getElementById('chart-bar');
+  if(!canvas) return;
+  resultCharts.bar = new Chart(canvas, {
+    type:'bar',
+    data:{
+      labels:['Monthly','Yearly'],
+      datasets:[
+        {label:'Income',data:[f.monthlyIncome,f.yearlyIncome],backgroundColor:'#22C55E',borderRadius:6,borderSkipped:false},
+        {label:'Expenses',data:[f.monthlyExpense,f.yearlyExpense],backgroundColor:'#EF4444',borderRadius:6,borderSkipped:false},
+        {label:'Invested',data:[f.monthlyInvest,f.yearlyInvest],backgroundColor:'#F97316',borderRadius:6,borderSkipped:false}
+      ]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{position:'bottom',labels:{color:'#9CA3AF',boxWidth:12,padding:10}},tooltip:{callbacks:{label:c=>` ${c.dataset.label}: ${fmtRs(c.parsed.y)}`}}},
+      scales:{
+        x:{grid:{display:false},ticks:{color:'#9CA3AF'}},
+        y:{grid:{color:'#1F1F1F'},ticks:{color:'#9CA3AF',callback:v=>fmtK(v)}}
+      }
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MAIN RENDER
+// ═══════════════════════════════════════════════════════════════
+const STEP_RENDERERS = [
+  renderWelcome, renderPhone, renderAbout, renderIncome, renderExpense,
+  renderLoan, renderInvest, renderEmergency, renderGoal, renderResult
+];
+
+function render(){
+  const step = AppState.step;
+  document.getElementById('step-counter').textContent = step===Q.RESULT ? 'Result' : `Step ${step+1} of ${TOTAL_STEPS-1}`;
+  const pct = step===Q.RESULT ? 100 : ((step+1)/(TOTAL_STEPS-1))*100;
+  document.getElementById('progress-fill').style.width = pct+'%';
+  document.getElementById('main').innerHTML = STEP_RENDERERS[step]();
+  renderStepNav();
+  window.scrollTo({top:0,behavior:'smooth'});
+  AppState.save();
+}
+
+function renderStepNav(){
+  const step = AppState.step;
+  const inner = document.getElementById('step-nav-inner');
+  if(step===Q.WELCOME){
+    inner.innerHTML = AppState.user
+      ? `<button class="btn btn-primary btn-full btn-lg" id="btn-next">Get started →</button>`
+      : `<div style="text-align:center;width:100%;font-size:12px;color:var(--text3)">↑ Sign in with Google to continue</div>`;
+  } else if(step===Q.RESULT){
+    inner.innerHTML = `<button class="btn btn-secondary btn-full" id="btn-back">← Back to edit</button>`;
+  } else {
+    inner.innerHTML = `
+      <button class="btn btn-secondary" id="btn-back" style="flex:0 0 100px">← Back</button>
+      <button class="btn btn-primary" id="btn-next" style="flex:1">${step===Q.GOAL?'See my score →':'Continue →'}</button>`;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// VALIDATION
+// ═══════════════════════════════════════════════════════════════
+function canAdvance(){
+  const step = AppState.step;
+  const a = AppState.answers;
+  if(step===Q.WELCOME) return !!AppState.user;
+  if(step===Q.PHONE) return /^\d{7,15}$/.test((a.whatsapp||'').replace(/\D/g,''));
+  if(step===Q.ABOUT) return (a.name||'').trim().length>0;
+  return true;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// EVENT DELEGATION
+// ═══════════════════════════════════════════════════════════════
+function setupEvents(){
+  document.addEventListener('input', e=>{
+    const t = e.target;
+
+    // num-control RANGE slider
+    if(t.dataset.numRange){
+      const k = t.dataset.numRange;
+      AppState.answers[k] = +t.value;
+      // sync number input
+      const ctrl = t.closest('.num-ctrl');
+      const numIn = ctrl.querySelector('[data-num-input]');
+      if(numIn) numIn.value = t.value;
+      // gradient
+      const min=+t.min, max=+t.max;
+      const p = max>min?((+t.value-min)/(max-min))*100:0;
+      t.style.setProperty('--p', p+'%');
+      // result live update
+      if(AppState.step===Q.RESULT) liveUpdateResult();
+      AppState.save();
+      return;
+    }
+
+    // num-control NUMBER input
+    if(t.dataset.numInput){
+      const k = t.dataset.numInput;
+      const v = parseFloat(t.value)||0;
+      AppState.answers[k] = v;
+      // sync slider (clamp visually)
+      const ctrl = t.closest('.num-ctrl');
+      const range = ctrl.querySelector('[data-num-range]');
+      if(range){
+        const min=+range.min, max=+range.max;
+        const clamped = Math.min(max, Math.max(min, v));
+        range.value = clamped;
+        const p = max>min?((clamped-min)/(max-min))*100:0;
+        range.style.setProperty('--p', p+'%');
+      }
+      if(AppState.step===Q.RESULT) liveUpdateResult();
+      AppState.save();
+      return;
+    }
+
+    // simple inputs
+    if(t.dataset.input){
+      AppState.answers[t.dataset.input] = t.type==='number' ? (parseFloat(t.value)||0) : t.value;
+      AppState.save();
+      return;
+    }
+
+    // custom expense name
+    if(t.dataset.cname){
+      const c = AppState.answers.customExpenses.find(x=>x.id===t.dataset.cname);
+      if(c) c.name = t.value;
+      AppState.save();
+      return;
+    }
+    if(t.dataset.camount){
+      const c = AppState.answers.customExpenses.find(x=>x.id===t.dataset.camount);
+      if(c) c.amount = parseFloat(t.value)||0;
+      AppState.save();
+      return;
+    }
+  });
+
+  document.addEventListener('click', e=>{
+    const t = e.target;
+
+    // option cards
+    const opt = t.closest('[data-opt]');
+    if(opt){
+      const group = opt.dataset.opt;
+      const val = opt.dataset.val;
+      if(group==='hasLoan'){
+        AppState.answers.hasLoan = val==='true';
+        document.getElementById('loan-fields').style.display = AppState.answers.hasLoan?'block':'none';
+      } else {
+        AppState.answers[group] = val;
+      }
+      document.querySelectorAll(`[data-opt="${group}"]`).forEach(x=>x.classList.remove('sel'));
+      opt.classList.add('sel');
+      AppState.save();
+      return;
+    }
+
+    // chips
+    const chip = t.closest('.chip');
+    if(chip){ chip.classList.toggle('sel'); return; }
+
+    // back/next
+    if(t.id==='btn-back'){
+      if(AppState.step>0){ AppState.step--; render(); }
+      return;
+    }
+    if(t.id==='btn-next'){
+      if(!canAdvance()){
+        if(AppState.step===Q.PHONE) toast('Enter a valid WhatsApp number');
+        else if(AppState.step===Q.ABOUT) toast('Please enter your name');
+        else toast('Complete this step to continue');
+        return;
+      }
+      AppState.step++;
+      if(AppState.step>=TOTAL_STEPS) AppState.step=TOTAL_STEPS-1;
+      render();
+      return;
+    }
+
+    // signout
+    if(t.id==='btn-signout'){
+      AppState.user=null; AppState.save(); render(); return;
+    }
+
+    // add custom expense
+    if(t.id==='btn-add-custom'){
+      AppState.answers.customExpenses.push({id:uid(),name:'',amount:0});
+      AppState.save();
+      document.getElementById('custom-rows').innerHTML = renderCustomRows();
+      return;
+    }
+    // delete custom
+    if(t.dataset.cdel){
+      AppState.answers.customExpenses = AppState.answers.customExpenses.filter(c=>c.id!==t.dataset.cdel);
+      AppState.save();
+      document.getElementById('custom-rows').innerHTML = renderCustomRows();
+      return;
+    }
+
+    // result actions
+    if(t.id==='btn-pdf'){ window.print(); return; }
+    if(t.id==='btn-wa'){ shareWhatsApp(); return; }
+    if(t.id==='btn-submit'){ submitToSheet(); return; }
+    if(t.id==='btn-restart'){
+      if(confirm('Start over? Your current answers will be cleared.')) AppState.reset();
+      return;
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// LIVE RESULT UPDATE (when sliders change on result screen)
+// ═══════════════════════════════════════════════════════════════
+let liveTimer;
+function liveUpdateResult(){
+  clearTimeout(liveTimer);
+  liveTimer = setTimeout(()=>{
+    const sd = computeScore(AppState.answers);
+    const C = 502.4;
+    const offset = C - (C * sd.score/100);
+    // ring
+    const ring = document.querySelector('.score-ring-fg');
+    if(ring) ring.setAttribute('stroke-dashoffset', offset);
+    const num = document.querySelector('.score-num-big');
+    if(num) num.textContent = sd.score;
+    const tag = document.querySelector('.score-hero .stage-tag');
+    if(tag){ tag.className = `stage-tag ${sd.stage.cls}`; tag.textContent = sd.stage.label; }
+    const sub = document.querySelector('.score-stage-sub');
+    if(sub) sub.textContent = sd.stage.desc;
+    // bench
+    const bench = benchmarkText(sd.stage, sd.score);
+    const benchPct = document.querySelector('.bench-pct');
+    const benchTxt = document.querySelector('.bench-txt');
+    if(benchPct) benchPct.textContent = bench.match(/\d+(\.\d+)?%/)?.[0]||'';
+    if(benchTxt) benchTxt.innerHTML = bench;
+    // tables
+    const f = sd.financials;
+    const tbls = document.querySelectorAll('.tbl');
+    if(tbls[0]){
+      const rows = tbls[0].querySelectorAll('.tbl-row .v');
+      rows[0].textContent = fmtRs(f.monthlyIncome);
+      rows[1].textContent = fmtRs(f.monthlyExpense);
+      rows[2].textContent = fmtRs(f.monthlyInvest);
+      rows[3].textContent = fmtRs(f.monthlyProfit);
+    }
+    if(tbls[1]){
+      const rows = tbls[1].querySelectorAll('.tbl-row .v');
+      rows[0].textContent = fmtK(f.yearlyIncome);
+      rows[1].textContent = fmtK(f.yearlyExpense);
+      rows[2].textContent = fmtK(f.yearlyInvest);
+      rows[3].textContent = fmtK(f.yearlyProfit);
+    }
+    // breakdown bars
+    const bdRows = document.querySelectorAll('.bd-row');
+    sd.breakdown.forEach((b,i)=>{
+      const r = bdRows[i]; if(!r) return;
+      r.querySelector('.bd-val').textContent = `${b.val.toFixed(0)} / ${b.max}`;
+      r.querySelector('.bd-fill').style.width = b.pct+'%';
+    });
+    // chart
+    if(resultCharts.bar){
+      resultCharts.bar.data.datasets[0].data = [f.monthlyIncome,f.yearlyIncome];
+      resultCharts.bar.data.datasets[1].data = [f.monthlyExpense,f.yearlyExpense];
+      resultCharts.bar.data.datasets[2].data = [f.monthlyInvest,f.yearlyInvest];
+      resultCharts.bar.update('none');
+    }
+  }, 60);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SUBMIT TO GOOGLE SHEET
+// ═══════════════════════════════════════════════════════════════
+async function submitToSheet(){
+  if(!APPS_SCRIPT_URL || APPS_SCRIPT_URL.startsWith('YOUR_')){
+    toast('⚠️ Apps Script URL not configured yet');
+    return;
+  }
+  const a = AppState.answers;
+  const sd = computeScore(a);
+  const payload = {
+    email: AppState.user?.email||'',
+    name:  a.name||AppState.user?.name||'',
+    whatsapp: (a.whatsappCC||'')+(a.whatsapp||''),
+    age: a.age, experience: a.experience, employment: a.employment,
+    monthlyIncome: sd.financials.monthlyIncome,
+    monthlyExpense: sd.financials.monthlyExpense,
+    monthlyInvest: sd.financials.monthlyInvest,
+    monthlyProfit: sd.financials.monthlyProfit,
+    emi: a.hasLoan?a.emi:0,
+    investments: sd.financials.monthlyInvest,
+    emergencyFund: a.emergencyFund,
+    targetIncome: a.targetIncome,
+    score: sd.score,
+    stage: sd.stage.key,
+    percentile: scoreToPercentile(sd.score),
+    customExpenses: a.customExpenses
+  };
+  try{
+    await fetch(APPS_SCRIPT_URL, {method:'POST',mode:'no-cors',body:JSON.stringify(payload)});
+    toast('✅ Saved successfully');
+  }catch(err){
+    toast('❌ Save failed — try again');
+  }
+}
+
+function shareWhatsApp(){
+  const a = AppState.answers;
+  const sd = computeScore(a);
+  const txt = `My Ef Calculator score: *${sd.score}/100* — ${sd.stage.label}\n\nMonthly Income: ${fmtRs(sd.financials.monthlyIncome)}\nMonthly Profit: ${fmtRs(sd.financials.monthlyProfit)}\n\nCheck yours at https://efcalculator.app`;
+  window.open(`https://wa.me/?text=${encodeURIComponent(txt)}`, '_blank');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// TOAST
+// ═══════════════════════════════════════════════════════════════
+let toastT;
+function toast(msg){
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastT);
+  toastT = setTimeout(()=>el.classList.remove('show'), 2400);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// GOOGLE SIGN-IN CALLBACK (must be window-scoped)
+// ═══════════════════════════════════════════════════════════════
+window.handleCredentialResponse = function(response){
+  try{
+    const jwt = response.credential;
+    const payload = JSON.parse(atob(jwt.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));
+    AppState.user = {
+      email: payload.email, name: payload.name, picture: payload.picture, sub: payload.sub
+    };
+    if(!AppState.answers.name) AppState.answers.name = payload.given_name||payload.name||'';
+    AppState.save();
+    toast('Signed in — let\'s go');
+    render();
+  }catch(e){ toast('Sign-in failed'); }
+};
+
+// ═══════════════════════════════════════════════════════════════
+// BOOT
+// ═══════════════════════════════════════════════════════════════
+function boot(){
+  AppState.load();
+  setupEvents();
+  render();
+}
+boot();
+</script>
+</body>
+</html>
