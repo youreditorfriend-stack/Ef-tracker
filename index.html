@@ -207,6 +207,41 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;bac
 .action-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:30px}
 .action-grid .btn-full{grid-column:1/-1}
 
+/* PROJECTION */
+.proj-card{background:linear-gradient(135deg,#1a1209 0%,#0d1a18 100%);border:1px solid var(--accent);border-radius:var(--r-md);padding:var(--gap);margin-bottom:var(--gap)}
+.proj-years{font-size:32px;font-weight:900;color:var(--accent);letter-spacing:-.02em;line-height:1}
+.proj-years-sub{font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.08em;margin-top:2px}
+.proj-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
+.proj-stat{background:rgba(0,0,0,.3);border-radius:var(--r-sm);padding:10px 12px}
+.proj-stat-lbl{font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px}
+.proj-stat-val{font-size:18px;font-weight:800;letter-spacing:-.02em}
+.proj-stat-val.wealth{color:var(--accent)}
+.proj-stat-val.income{color:var(--green)}
+.proj-stat-val.exp{color:var(--red)}
+
+/* FINAL REPORT */
+.fr-verdict{background:var(--bg-card);border:1px solid var(--accent);border-radius:var(--r-md);padding:14px 16px;margin-bottom:var(--gap);font-size:14px;font-weight:600;line-height:1.5}
+.fr-grid{display:grid;grid-template-columns:1fr;gap:10px;margin-bottom:var(--gap)}
+.fr-block{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-md);padding:14px}
+.fr-block-h{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.fr-block.pos .fr-block-h{color:var(--green)}
+.fr-block.neg .fr-block-h{color:var(--red)}
+.fr-block.foc .fr-block-h{color:var(--accent)}
+.fr-block ul{list-style:none;padding:0;margin:0}
+.fr-block li{font-size:13px;color:var(--text);line-height:1.5;padding:5px 0 5px 18px;position:relative}
+.fr-block li::before{content:'';position:absolute;left:0;top:11px;width:6px;height:6px;border-radius:50%}
+.fr-block.pos li::before{background:var(--green)}
+.fr-block.neg li::before{background:var(--red)}
+.fr-block.foc li::before{background:var(--accent)}
+
+/* AUTO-SAVE STATUS */
+.save-status{display:flex;align-items:center;justify-content:center;gap:8px;font-size:12px;color:var(--text2);padding:8px;margin-bottom:var(--gap)}
+.save-status.ok{color:var(--green)}
+.save-status.err{color:var(--red)}
+.save-status .dot{width:8px;height:8px;border-radius:50%;background:currentColor;animation:pulse 1.5s ease-in-out infinite}
+.save-status.ok .dot,.save-status.err .dot{animation:none}
+@keyframes pulse{0%,100%{opacity:.3}50%{opacity:1}}
+
 .stage-tag{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;font-size:12px;font-weight:700}
 .stg-Elite{background:rgba(168,85,247,.15);color:var(--purple)}
 .stg-Thriving{background:rgba(34,197,94,.12);color:var(--green)}
@@ -397,7 +432,8 @@ const AppState = {
     // emergency
     emergencyFund: 0,
     // goals
-    targetIncome: 80000, savingsGoal: 500000
+    targetIncome: 80000, savingsGoal: 500000,
+    projectionYears: 10
   },
 
   load(){
@@ -495,34 +531,166 @@ function computeScore(a){
 function recommendations(a, scoreData){
   const recs = [];
   const f = scoreData.financials;
-  if(f.monthlyProfit<0){
-    recs.push({ico:'⚠️',txt:`<strong>Deficit alert.</strong> You're spending ${fmtRs(-f.monthlyProfit)} more than you earn each month. Cut your biggest variable expense or raise one rate by 20%.`});
-  }
-  if(a.hasLoan && a.emi/f.monthlyIncome>0.30){
-    recs.push({ico:'🏦',txt:`<strong>Heavy EMI burden.</strong> Your EMI is ${Math.round(a.emi/f.monthlyIncome*100)}% of income. Refinance or pre-pay if possible.`});
-  }
-  const efTarget = f.monthlyExpense*6;
-  if(a.emergencyFund<efTarget){
-    recs.push({ico:'🛟',txt:`<strong>Build emergency fund.</strong> Aim for ${fmtRs(efTarget)} (6 months of expenses). You have ${fmtRs(a.emergencyFund)}. Set aside ${fmtRs(Math.max(5000,(efTarget-a.emergencyFund)/12))}/month.`});
-  }
-  if(f.monthlyInvest/Math.max(f.monthlyIncome,1)<0.10 && f.monthlyProfit>0){
-    recs.push({ico:'📈',txt:`<strong>Invest more.</strong> You're saving ${(f.monthlyInvest/Math.max(f.monthlyIncome,1)*100).toFixed(0)}%. Target 20%. Start an SIP of ${fmtRs(f.monthlyIncome*0.10)}/month.`});
-  }
   let streams = 0;
   if(a.mainJobMonthly>0)streams++; if(a.videoRate*a.videoQty>0)streams++; if(a.thumbRate*a.thumbQty>0)streams++; if(a.consultRate*a.consultDays>0)streams++; if(a.otherInc>0)streams++;
+
+  // Critical first
+  if(f.monthlyProfit<0){
+    recs.push({ico:'⚠️',txt:`<strong>Deficit alert.</strong> You're spending ${fmtRs(-f.monthlyProfit)} more than you earn each month. Cut your biggest variable expense or raise one rate by 20% this week — without action, savings will erode within ${Math.max(1,Math.floor(a.emergencyFund/Math.abs(f.monthlyProfit)))} month(s).`});
+  }
+  if(a.hasLoan && a.emi/Math.max(f.monthlyIncome,1)>0.40){
+    recs.push({ico:'🚨',txt:`<strong>EMI is too heavy.</strong> ${Math.round(a.emi/f.monthlyIncome*100)}% of your income goes to EMI — over 40% is danger zone. Refinance for lower rate, or aggressively prepay principal with bonuses.`});
+  } else if(a.hasLoan && a.emi/Math.max(f.monthlyIncome,1)>0.25){
+    recs.push({ico:'🏦',txt:`<strong>Watch your EMI ratio.</strong> ${Math.round(a.emi/f.monthlyIncome*100)}% of income on EMI. Healthy is <25%. Avoid taking new loans until this drops.`});
+  }
+  const efTarget = f.monthlyExpense*6;
+  if(f.monthlyExpense>0 && a.emergencyFund<efTarget*0.5){
+    recs.push({ico:'🛟',txt:`<strong>Emergency fund critical.</strong> You have ${fmtRs(a.emergencyFund)} = only ${(a.emergencyFund/Math.max(f.monthlyExpense,1)).toFixed(1)} months of expenses. Aim for ${fmtRs(efTarget)} (6 months). Park ${fmtRs(Math.max(5000,(efTarget-a.emergencyFund)/12))}/mo in a liquid fund.`});
+  } else if(f.monthlyExpense>0 && a.emergencyFund<efTarget){
+    recs.push({ico:'🛟',txt:`<strong>Emergency fund needs ${fmtRs(efTarget-a.emergencyFund)} more.</strong> You have ${(a.emergencyFund/f.monthlyExpense).toFixed(1)} months covered — push to 6. Add ${fmtRs((efTarget-a.emergencyFund)/12)}/mo to a liquid fund this year.`});
+  }
+
+  // Investing
+  const sr = f.monthlyInvest/Math.max(f.monthlyIncome,1);
+  if(sr<0.10 && f.monthlyProfit>0){
+    recs.push({ico:'📈',txt:`<strong>Investment too low.</strong> Saving ${(sr*100).toFixed(0)}% — Indian middle-class average is ~30%. Start an SIP of ${fmtRs(f.monthlyIncome*0.10)}/mo in a Nifty 50 index fund. Set up auto-debit on salary day.`});
+  } else if(sr<0.20 && f.monthlyProfit>0){
+    recs.push({ico:'📈',txt:`<strong>Bump investments.</strong> ${(sr*100).toFixed(0)}% saved. Push to 20% by adding ${fmtRs(f.monthlyIncome*0.20 - f.monthlyInvest)}/mo. Diversify: 60% equity SIP, 30% debt fund, 10% gold.`});
+  }
+
+  // Income diversity
   if(streams<2){
-    recs.push({ico:'🎯',txt:`<strong>Diversify income.</strong> You have ${streams} income source. Add thumbnails, consulting, or short-form editing to de-risk.`});
+    recs.push({ico:'🎯',txt:`<strong>Single income = single point of failure.</strong> Add a 2nd stream: thumbnails (${fmtRs(500)}–${fmtRs(2000)}/each), short-form editing (${fmtRs(1500)}/reel), or motion graphics. Aim for 30% of income from a 2nd skill in 90 days.`});
+  } else if(streams===2 && a.experience>=2){
+    recs.push({ico:'🎯',txt:`<strong>Add a 3rd revenue stream.</strong> With ${a.experience}y experience, try monthly retainers (${fmtRs(15000)}–${fmtRs(40000)}/client/mo) or a digital product (LUT pack, sound effect library, mini-course).`});
   }
-  if(a.videoRate>0 && a.videoRate<2500){
-    recs.push({ico:'💰',txt:`<strong>Your video rate is low.</strong> Median for Indian editors with ${a.experience||1}+ years is ₹3,000–₹5,000/video. Test a ₹500 hike on your next quote.`});
+
+  // Rate optimization
+  if(a.videoRate>0 && a.videoRate<2500 && a.experience>=1){
+    recs.push({ico:'💰',txt:`<strong>Video rate is below market.</strong> Median for Indian editors with ${a.experience}+ years is ₹3,000–₹5,000/video. Quote ${fmtRs(a.videoRate+500)} on your next 3 clients — keep doing this until 30% say no.`});
   }
-  if(scoreData.score>=70 && f.monthlyProfit>20000){
-    recs.push({ico:'🚀',txt:`<strong>You're crushing it.</strong> Consider a ${fmtRs(f.monthlyProfit*0.30)} monthly investment in index funds — compound this for 10 years.`});
+  if(a.thumbRate>0 && a.thumbRate<300){
+    recs.push({ico:'🎨',txt:`<strong>Thumbnail rate is too low.</strong> Custom thumbnails should be ${fmtRs(500)}–${fmtRs(1500)} each. Position as "CTR-tested" with your portfolio — clients pay 3× more for proof.`});
   }
+
+  // Goal gap
+  const goalGap = a.targetIncome - f.monthlyIncome;
+  if(goalGap > 0 && a.targetIncome>0){
+    const moreVideos = a.videoRate>0 ? Math.ceil(goalGap/a.videoRate) : 0;
+    recs.push({ico:'🎯',txt:`<strong>Goal gap: ${fmtRs(goalGap)}/mo.</strong> ${moreVideos>0?`Need ${moreVideos} more videos/mo at current rate, OR raise rate to ${fmtRs(Math.ceil(a.targetIncome/Math.max(a.videoQty,1)))}.`:`Increase any active stream — even 10% growth across all closes ${Math.round(f.monthlyIncome*0.10/goalGap*100)}% of the gap.`}`});
+  }
+
+  // Age-based
+  if(a.age>=30 && sr<0.20){
+    recs.push({ico:'⏰',txt:`<strong>Catch-up needed.</strong> Past 30 the compounding window shrinks. Aim for 25% savings rate now to retire comfortably by 55. SIP ${fmtRs(Math.round(f.monthlyIncome*0.25))}/mo for 25 years at 12% = ~${fmtRs(Math.round(f.monthlyIncome*0.25*1875))}.`});
+  }
+
+  // Crushing it
+  if(scoreData.score>=80 && f.monthlyProfit>30000){
+    recs.push({ico:'🚀',txt:`<strong>You're crushing it.</strong> Diversify investments: 50% equity (Nifty/Mid-cap), 20% debt fund, 15% international (S&P500), 10% gold, 5% crypto. Increase SIP by 10% every 6 months.`});
+  }
+  if(scoreData.score>=85){
+    recs.push({ico:'🏆',txt:`<strong>Top tier — now scale.</strong> Hire a junior editor for grunt work (₹15k–25k/mo). You focus on client acquisition + creative direction. Doubles output, frees 20 hrs/week for higher-value work.`});
+  }
+
+  // Custom expense audit
+  const customTotal = (a.customExpenses||[]).reduce((s,c)=>s+(c.amount||0),0);
+  if(customTotal > f.monthlyExpense*0.20){
+    recs.push({ico:'🔍',txt:`<strong>Audit custom expenses.</strong> Custom items are ${fmtRs(customTotal)} (${Math.round(customTotal/f.monthlyExpense*100)}% of total). Review each — cancel anything unused for 30+ days. Most freelancers find ${fmtRs(2000)}–${fmtRs(5000)}/mo of forgotten subscriptions.`});
+  }
+
   if(recs.length===0){
-    recs.push({ico:'✅',txt:`<strong>All key metrics look healthy.</strong> Document your system — it's your moat.`});
+    recs.push({ico:'✅',txt:`<strong>All key metrics look healthy.</strong> Document your system — pricing, SOPs, client onboarding. It's your moat. Reinvest profits into skills (₹10k/quarter on courses).`});
   }
-  return recs.slice(0,5);
+  return recs.slice(0,8);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// FUTURE PROJECTION (compound growth math)
+// ═══════════════════════════════════════════════════════════════
+function computeProjection(a, sd, years){
+  const f = sd.financials;
+  const months = Math.max(1, years*12);
+  const cumIncome = f.monthlyIncome * months;
+  const cumExpenses = f.monthlyExpense * months;
+  // SIP future value (12% p.a. = 1% monthly compounding)
+  const r = 0.12 / 12;
+  const sipFV = f.monthlyInvest > 0
+    ? f.monthlyInvest * ((Math.pow(1+r, months) - 1) / r) * (1+r)
+    : 0;
+  // Cash savings (profit after investment), no growth — sitting in bank
+  const cashSavings = Math.max(0, f.monthlyProfit - f.monthlyInvest) * months;
+  // Emergency fund grows at 6% in liquid fund
+  const efGrown = (a.emergencyFund||0) * Math.pow(1.06, years);
+  const netWealth = sipFV + cashSavings + efGrown;
+  return { years, months, cumIncome, cumExpenses, sipFV, cashSavings, efGrown, netWealth };
+}
+
+function projectionByYear(a, sd, maxYears){
+  const points = [];
+  for(let y=1; y<=maxYears; y++){
+    const p = computeProjection(a, sd, y);
+    points.push({ year: y, wealth: p.netWealth, income: p.cumIncome, invested: p.sipFV });
+  }
+  return points;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// FINAL REPORT (positives / negatives / focus)
+// ═══════════════════════════════════════════════════════════════
+function generateFinalReport(a, sd){
+  const f = sd.financials;
+  const positives = [];
+  const negatives = [];
+  const focus = [];
+
+  // From score breakdown
+  sd.breakdown.forEach(b => {
+    const label = b.key;
+    if(b.pct >= 80) positives.push(`${label} is strong (${b.val.toFixed(0)}/${b.max}).`);
+    else if(b.pct < 40) negatives.push(`${label} is weak (${b.val.toFixed(0)}/${b.max}).`);
+  });
+
+  // Custom positives
+  if(f.monthlyProfit>0) positives.push(`You operate at a profit of ${fmtRs(f.monthlyProfit)}/month.`);
+  if(f.monthlyIncome>=50000) positives.push(`Your income (${fmtRs(f.monthlyIncome)}) is above the median Indian video editor (₹35,000).`);
+  let streams = 0;
+  if(a.mainJobMonthly>0)streams++; if(a.videoRate*a.videoQty>0)streams++; if(a.thumbRate*a.thumbQty>0)streams++; if(a.consultRate*a.consultDays>0)streams++; if(a.otherInc>0)streams++;
+  if(streams>=3) positives.push(`${streams} active income streams — good diversification.`);
+  if(f.monthlyInvest>0) positives.push(`You're investing ${fmtRs(f.monthlyInvest)}/month — most freelancers don't.`);
+
+  // Custom negatives
+  if(f.monthlyProfit<0) negatives.push(`You're losing ${fmtRs(-f.monthlyProfit)}/month — unsustainable.`);
+  if(a.emergencyFund < f.monthlyExpense*3 && f.monthlyExpense>0) negatives.push(`Emergency fund only covers ${(a.emergencyFund/f.monthlyExpense).toFixed(1)} months — vulnerable to any income shock.`);
+  if(a.hasLoan && a.emi/Math.max(f.monthlyIncome,1)>0.30) negatives.push(`EMI is ${Math.round(a.emi/f.monthlyIncome*100)}% of income — heavy debt burden.`);
+  if(streams<=1) negatives.push(`Only ${streams} income source — single point of failure.`);
+  if(f.monthlyInvest/Math.max(f.monthlyIncome,1)<0.10 && f.monthlyIncome>20000) negatives.push(`Saving only ${(f.monthlyInvest/Math.max(f.monthlyIncome,1)*100).toFixed(0)}% — far below 20-30% target.`);
+
+  // Focus priorities (top 3 actions, ordered by weakness)
+  const sorted = sd.breakdown.slice().sort((x,y)=>x.pct-y.pct);
+  sorted.slice(0,3).forEach(b=>{
+    if(b.pct >= 80) return; // skip already strong
+    const map = {
+      'Profit Margin':    `Increase prices by 15-20% on next 3 clients OR cut your biggest expense by ${fmtRs(Math.round(f.monthlyExpense*0.15))}.`,
+      'Savings Rate':     `Set up SIP of ${fmtRs(Math.round(f.monthlyIncome*0.20))}/month — auto-debit on salary day.`,
+      'Emergency Fund':   `Build to ${fmtRs(f.monthlyExpense*6)} (6 months expenses). Park ${fmtRs(Math.max(5000,(f.monthlyExpense*6-a.emergencyFund)/12))}/mo in a liquid fund.`,
+      'Debt Health':      `Refinance EMI for lower rate OR aggressively prepay using bonuses + tax refunds.`,
+      'Goal Progress':    `Add ${fmtRs(Math.max(0,a.targetIncome-f.monthlyIncome))}/mo through one new income stream or rate hike.`,
+      'Income Diversity': `Add a 2nd skill — thumbnails, motion graphics, or consulting. Aim for 30% of income from it in 90 days.`
+    };
+    if(map[b.key]) focus.push(map[b.key]);
+  });
+  if(focus.length===0) focus.push('Document your system — pricing, SOPs, client onboarding. Build your moat.');
+
+  // Verdict
+  let verdict;
+  const k = sd.stage.key;
+  if(k==='Elite' || k==='Thriving') verdict = `🏆 Strong financial position. Focus on scaling and protecting wealth — not earning more.`;
+  else if(k==='Growing' || k==='Stable') verdict = `📈 You're on track but vulnerable. The next 6 months should focus on fixing the weakest area before chasing more income.`;
+  else if(k==='AtRisk') verdict = `⚠️ Warning signs present. Take corrective action this week — small changes now prevent big problems in 12 months.`;
+  else verdict = `🚨 Critical state. Don't panic — but treat the next 30 days as a financial emergency. Cut, raise, save aggressively.`;
+
+  return { positives: positives.slice(0,5), negatives: negatives.slice(0,5), focus, verdict };
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -748,8 +916,8 @@ ${numControl({key:'savingsGoal',label:'💰 Total savings goal (1 year)',min:0,m
 // ═══════════════════════════════════════════════════════════════
 // RESULT SCREEN
 // ═══════════════════════════════════════════════════════════════
-let resultCharts = {breakdown:null, bar:null};
-function destroyResultCharts(){ Object.values(resultCharts).forEach(c=>c&&c.destroy()); resultCharts={breakdown:null,bar:null}; }
+let resultCharts = {breakdown:null, bar:null, proj:null};
+function destroyResultCharts(){ Object.values(resultCharts).forEach(c=>c&&c.destroy()); resultCharts={breakdown:null,bar:null,proj:null}; }
 
 function renderResult(){
   destroyResultCharts();
@@ -758,16 +926,23 @@ function renderResult(){
   const f = sd.financials;
   const benchTxt = benchmarkText(sd.stage, sd.score);
   const recs = recommendations(a, sd);
-  const C = 502.4; // 2*PI*80
+  const fr = generateFinalReport(a, sd);
+  const projYears = a.projectionYears || 10;
+  const proj = computeProjection(a, sd, projYears);
+  const C = 502.4;
   const offset = C - (C * sd.score/100);
 
-  setTimeout(()=>renderResultCharts(sd),60);
+  setTimeout(()=>renderResultCharts(sd, a),60);
+  // auto-submit once per session (after first time reaching result)
+  setTimeout(()=>autoSubmitOnce(), 300);
 
   return `
 <div class="step-h" style="margin-bottom:14px">
   <span class="step-num">Your Result</span>
   <div class="step-title">Financial health snapshot</div>
 </div>
+
+<div id="save-status" class="save-status"><span class="dot"></span><span class="save-status-txt">Saving your report...</span></div>
 
 <div class="score-hero">
   <div class="score-ring-wrap">
@@ -787,6 +962,42 @@ function renderResult(){
 <div class="bench-card">
   <div class="bench-pct">${benchTxt.match(/\d+(\.\d+)?%/)?.[0]||''}</div>
   <div class="bench-txt">${benchTxt}</div>
+</div>
+
+<!-- FINAL VERDICT -->
+<div class="section-title">📝 Final report</div>
+<div class="fr-verdict" id="fr-verdict">${fr.verdict}</div>
+<div class="fr-grid">
+  <div class="fr-block pos">
+    <div class="fr-block-h">✅ What's working (${fr.positives.length})</div>
+    <ul>${fr.positives.length?fr.positives.map(x=>`<li>${x}</li>`).join(''):'<li>Build a foundation first — your strengths will follow.</li>'}</ul>
+  </div>
+  <div class="fr-block neg">
+    <div class="fr-block-h">⚠️ What needs fixing (${fr.negatives.length})</div>
+    <ul>${fr.negatives.length?fr.negatives.map(x=>`<li>${x}</li>`).join(''):'<li>No major red flags — protect your position.</li>'}</ul>
+  </div>
+  <div class="fr-block foc">
+    <div class="fr-block-h">🎯 Focus this month (top ${fr.focus.length})</div>
+    <ul>${fr.focus.map(x=>`<li>${x}</li>`).join('')}</ul>
+  </div>
+</div>
+
+<!-- WEALTH PROJECTION -->
+<div class="section-title">📈 Wealth projection</div>
+<div class="proj-card">
+  <div style="display:flex;align-items:flex-end;gap:10px;margin-bottom:6px">
+    <div class="proj-years" id="proj-years-num">${projYears}</div>
+    <div class="proj-years-sub">years from now</div>
+  </div>
+  ${numControl({key:'projectionYears',label:'Adjust years',min:1,max:40,step:1,value:projYears,prefix:'',suffix:'yr'})}
+  <div class="proj-grid">
+    <div class="proj-stat"><div class="proj-stat-lbl">Net Wealth</div><div class="proj-stat-val wealth" id="proj-wealth">${fmtK(proj.netWealth)}</div></div>
+    <div class="proj-stat"><div class="proj-stat-lbl">Total Income</div><div class="proj-stat-val income" id="proj-income">${fmtK(proj.cumIncome)}</div></div>
+    <div class="proj-stat"><div class="proj-stat-lbl">Invested (12% growth)</div><div class="proj-stat-val wealth" id="proj-invested">${fmtK(proj.sipFV)}</div></div>
+    <div class="proj-stat"><div class="proj-stat-lbl">Total Expenses</div><div class="proj-stat-val exp" id="proj-exp">${fmtK(proj.cumExpenses)}</div></div>
+  </div>
+  <div class="chart-wrap" style="height:200px;margin-top:14px"><canvas id="chart-proj"></canvas></div>
+  <div style="font-size:10px;color:var(--text3);text-align:center;margin-top:6px">Assumes 12% p.a. on investments, 6% on emergency fund. Income/expense flat (no growth/inflation).</div>
 </div>
 
 <div class="tbl-grid">
@@ -833,14 +1044,13 @@ ${numControl({key:'emergencyFund',label:'Emergency fund',min:0,max:2000000,step:
 
 <div class="section-title">Take action</div>
 <div class="action-grid">
-  <button class="btn btn-primary" id="btn-pdf">📥 Download PDF</button>
-  <button class="btn btn-secondary" id="btn-wa">📲 Send to WhatsApp</button>
-  <button class="btn btn-primary btn-full btn-lg" id="btn-submit">💾 Save my report</button>
+  <button class="btn btn-primary btn-full" id="btn-pdf">📥 Download PDF Report</button>
+  <button class="btn btn-secondary btn-full" id="btn-wa">📲 Send to WhatsApp</button>
   <button class="btn btn-ghost btn-full" id="btn-restart" style="margin-top:8px;font-size:13px">↻ Start over</button>
 </div>`;
 }
 
-function renderResultCharts(sd){
+function renderResultCharts(sd, a){
   const f = sd.financials;
   const canvas = document.getElementById('chart-bar');
   if(!canvas) return;
@@ -863,6 +1073,40 @@ function renderResultCharts(sd){
       }
     }
   });
+  // PROJECTION CHART
+  const pcv = document.getElementById('chart-proj');
+  if(pcv){
+    const maxY = a.projectionYears || 10;
+    const points = projectionByYear(a, sd, maxY);
+    resultCharts.proj = new Chart(pcv, {
+      type:'line',
+      data:{
+        labels: points.map(p=>p.year+'y'),
+        datasets:[
+          {label:'Net Wealth', data:points.map(p=>p.wealth), borderColor:'#F97316', backgroundColor:'rgba(249,115,22,.15)', fill:true, tension:.35, pointRadius:0, pointHoverRadius:5, borderWidth:2.5},
+          {label:'Total Income', data:points.map(p=>p.income), borderColor:'#22C55E', backgroundColor:'transparent', fill:false, tension:.2, pointRadius:0, pointHoverRadius:4, borderWidth:2, borderDash:[5,4]}
+        ]
+      },
+      options:{
+        responsive:true, maintainAspectRatio:false,
+        plugins:{legend:{position:'bottom',labels:{color:'#9CA3AF',boxWidth:12,padding:10}},tooltip:{callbacks:{label:c=>` ${c.dataset.label}: ${fmtK(c.parsed.y)}`}}},
+        scales:{
+          x:{grid:{display:false},ticks:{color:'#9CA3AF',maxRotation:0,autoSkipPadding:15}},
+          y:{grid:{color:'#1F1F1F'},ticks:{color:'#9CA3AF',callback:v=>fmtK(v)}}
+        }
+      }
+    });
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// AUTO-SUBMIT (one-shot per session)
+// ═══════════════════════════════════════════════════════════════
+let _autoSubmitDone = false;
+function autoSubmitOnce(){
+  if(_autoSubmitDone) return;
+  _autoSubmitDone = true;
+  submitToSheet(true);
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1067,7 +1311,6 @@ function setupEvents(){
     // result actions
     if(t.id==='btn-pdf'){ downloadPDF(); return; }
     if(t.id==='btn-wa'){ shareWhatsApp(); return; }
-    if(t.id==='btn-submit'){ submitToSheet(); return; }
     if(t.id==='btn-restart'){
       if(confirm('Start over? Your current answers will be cleared.')) AppState.reset();
       return;
@@ -1130,6 +1373,22 @@ function liveUpdateResult(){
       resultCharts.bar.data.datasets[1].data = [f.monthlyExpense,f.yearlyExpense];
       resultCharts.bar.data.datasets[2].data = [f.monthlyInvest,f.yearlyInvest];
       resultCharts.bar.update('none');
+    }
+    // projection
+    const a = AppState.answers;
+    const projY = a.projectionYears || 10;
+    const proj = computeProjection(a, sd, projY);
+    const yEl = document.getElementById('proj-years-num'); if(yEl) yEl.textContent = projY;
+    const w = document.getElementById('proj-wealth'); if(w) w.textContent = fmtK(proj.netWealth);
+    const inc = document.getElementById('proj-income'); if(inc) inc.textContent = fmtK(proj.cumIncome);
+    const inv = document.getElementById('proj-invested'); if(inv) inv.textContent = fmtK(proj.sipFV);
+    const exp = document.getElementById('proj-exp'); if(exp) exp.textContent = fmtK(proj.cumExpenses);
+    if(resultCharts.proj){
+      const pts = projectionByYear(a, sd, projY);
+      resultCharts.proj.data.labels = pts.map(p=>p.year+'y');
+      resultCharts.proj.data.datasets[0].data = pts.map(p=>p.wealth);
+      resultCharts.proj.data.datasets[1].data = pts.map(p=>p.income);
+      resultCharts.proj.update('none');
     }
   }, 60);
 }
@@ -1285,6 +1544,7 @@ function _unused_buildPDFHTML(a, sd){
 
 // PDF-safe Rs formatter (Helvetica core font can't render ₹)
 const fmtPdfRs = n => 'Rs ' + Math.round(n||0).toLocaleString('en-IN');
+const formatProjShort = n => { n=Math.round(n||0); if(n>=10000000) return 'Rs '+(n/10000000).toFixed(1).replace(/\.0$/,'')+'Cr'; if(n>=100000) return 'Rs '+(n/100000).toFixed(1).replace(/\.0$/,'')+'L'; if(n>=1000) return 'Rs '+(n/1000).toFixed(0)+'k'; return 'Rs '+n; };
 const STAGE_NAME = {Elite:'ELITE',Thriving:'THRIVING',Growing:'GROWING',Stable:'STABLE',AtRisk:'AT RISK',Critical:'CRITICAL'};
 
 function downloadPDF(){
@@ -1484,13 +1744,90 @@ function downloadPDF(){
     });
     y += 21;
 
+    // ─── FINAL VERDICT ───
+    const fr = generateFinalReport(a, sd);
+    ck(20);
+    fc(255,248,241); dc(249,115,22); doc.setLineWidth(0.5);
+    const verdictLines = doc.splitTextToSize(fr.verdict.replace(/[^\x00-\x7F]/g,'').trim(), W-2*M-6);
+    const vh = verdictLines.length*4 + 6;
+    doc.rect(M, y, W-2*M, vh, 'FD');
+    doc.setFont('helvetica','bold'); doc.setFontSize(9); tc(249,115,22);
+    txt(verdictLines, M+3, y+4);
+    y += vh + 4;
+
+    // ─── POSITIVES / NEGATIVES / FOCUS (3-column) ───
+    const colWFR = (W - 2*M - 6) / 2;
+    const drawFRBlock = (x, y0, title, items, color, bgRGB) => {
+      const lines = [];
+      items.forEach(it=>{
+        const wraped = doc.splitTextToSize('• '+it, colWFR-6);
+        wraped.forEach(l=>lines.push(l));
+      });
+      if(lines.length===0) lines.push('• None');
+      const hh = lines.length*3.6 + 8;
+      fc(...bgRGB); dc(229,229,229); doc.setLineWidth(0.2);
+      doc.rect(x, y0, colWFR, hh, 'FD');
+      doc.setFont('helvetica','bold'); doc.setFontSize(8); tc(...color);
+      txt(title, x+3, y0+5);
+      doc.setFont('helvetica','normal'); doc.setFontSize(7.5); tc(51,51,51);
+      txt(lines, x+3, y0+9.5);
+      return y0+hh;
+    };
+    ck(38);
+    const cleanPos = fr.positives.map(s=>s.replace(/[^\x00-\x7F]/g,'').trim());
+    const cleanNeg = fr.negatives.map(s=>s.replace(/[^\x00-\x7F]/g,'').trim());
+    const cleanFoc = fr.focus.map(s=>s.replace(/[^\x00-\x7F]/g,'').replace(/Rs/g,'Rs').trim());
+    const yP = drawFRBlock(M, y, 'WHATS WORKING', cleanPos, [21,128,61], [240,253,244]);
+    const yN = drawFRBlock(M+colWFR+6, y, 'WHATS NOT', cleanNeg, [185,28,28], [254,242,242]);
+    y = Math.max(yP, yN) + 4;
+    ck(20);
+    const yF = drawFRBlock(M, y, 'FOCUS THIS MONTH', cleanFoc, [249,115,22], [255,251,235]);
+    // make focus full-width
+    fc(255,251,235); dc(249,115,22); doc.setLineWidth(0.3);
+    const focLinesAll = [];
+    cleanFoc.forEach(it=>{ doc.splitTextToSize('• '+it, W-2*M-6).forEach(l=>focLinesAll.push(l)); });
+    const fh = focLinesAll.length*3.8 + 8;
+    // redraw focus full width
+    y = Math.max(yP, yN) + 4;
+    doc.rect(M, y, W-2*M, fh, 'FD');
+    doc.setFont('helvetica','bold'); doc.setFontSize(8); tc(249,115,22);
+    txt('FOCUS THIS MONTH', M+3, y+5);
+    doc.setFont('helvetica','normal'); doc.setFontSize(7.5); tc(51,51,51);
+    txt(focLinesAll, M+3, y+9.5);
+    y += fh + 6;
+
+    // ─── WEALTH PROJECTION ───
+    ck(28);
+    doc.setFont('helvetica','bold'); doc.setFontSize(8); tc(102,102,102);
+    txt('WEALTH PROJECTION  (assuming 12% returns on investments)', M, y);
+    y += 3;
+    const projYears = [5, 10, 20, 30, 40];
+    const projColW = (W-2*M)/projYears.length;
+    fc(17,17,17); doc.rect(M, y, W-2*M, 6, 'F');
+    tc(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(7);
+    projYears.forEach((yr,i)=>txt('IN '+yr+' YEARS', M+i*projColW+projColW/2, y+4, {align:'center'}));
+    y += 6;
+    fc(249,249,249); dc(229,229,229); doc.setLineWidth(0.2);
+    doc.rect(M, y, W-2*M, 22, 'FD');
+    projYears.forEach((yr,i)=>{
+      const p = computeProjection(a, sd, yr);
+      const xC = M + i*projColW + projColW/2;
+      doc.setFont('helvetica','bold'); doc.setFontSize(11); tc(249,115,22);
+      txt(formatProjShort(p.netWealth), xC, y+8, {align:'center'});
+      doc.setFont('helvetica','normal'); doc.setFontSize(7); tc(102,102,102);
+      txt('Net Wealth', xC, y+13, {align:'center'});
+      doc.setFontSize(7); tc(34,128,94);
+      txt(formatProjShort(p.cumIncome)+' inc', xC, y+18, {align:'center'});
+    });
+    y += 26;
+
     // ─── RECOMMENDATIONS ───
     ck(15);
     doc.setFont('helvetica','bold'); doc.setFontSize(8); tc(102,102,102);
     txt('PERSONALIZED RECOMMENDATIONS', M, y);
     y += 3;
     recs.forEach(r=>{
-      const clean = r.txt.replace(/<[^>]+>/g,'').replace(/₹/g,'Rs ');
+      const clean = r.txt.replace(/<[^>]+>/g,'').replace(/₹/g,'Rs ').replace(/[^\x00-\x7F]/g,'').trim();
       const lines = doc.splitTextToSize(clean, W-2*M-8);
       const hh = lines.length*4 + 4;
       ck(hh+2);
@@ -1521,11 +1858,21 @@ function downloadPDF(){
 // ═══════════════════════════════════════════════════════════════
 // SUBMIT TO GOOGLE SHEET
 // ═══════════════════════════════════════════════════════════════
-async function submitToSheet(){
+function setSaveStatus(state, msg){
+  const el = document.getElementById('save-status');
+  if(!el) return;
+  el.className = 'save-status ' + (state||'');
+  const t = el.querySelector('.save-status-txt');
+  if(t) t.textContent = msg;
+}
+
+async function submitToSheet(silent){
   if(!APPS_SCRIPT_URL || APPS_SCRIPT_URL.startsWith('YOUR_')){
-    toast('⚠️ Apps Script URL not configured yet');
+    if(!silent) toast('⚠️ Apps Script URL not configured yet');
+    setSaveStatus('err','⚠️ Save endpoint not configured');
     return;
   }
+  setSaveStatus('','Saving your report...');
   const a = AppState.answers;
   const sd = computeScore(a);
   const payload = {
@@ -1548,9 +1895,12 @@ async function submitToSheet(){
   };
   try{
     await fetch(APPS_SCRIPT_URL, {method:'POST',mode:'no-cors',body:JSON.stringify(payload)});
-    toast('✅ Saved successfully');
+    const t = new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+    setSaveStatus('ok','✅ Saved automatically at '+t);
+    if(!silent) toast('✅ Saved successfully');
   }catch(err){
-    toast('❌ Save failed — try again');
+    setSaveStatus('err','❌ Save failed — refresh to retry');
+    if(!silent) toast('❌ Save failed — try again');
   }
 }
 
