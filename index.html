@@ -1570,7 +1570,11 @@ function downloadPDF(returnBase64){
     const tc = (...rgb)=>doc.setTextColor(...rgb);
     const fc = (...rgb)=>doc.setFillColor(...rgb);
     const dc = (...rgb)=>doc.setDrawColor(...rgb);
-    const txt = (s,x,yy,opts)=>doc.text(String(s||''), x, yy, opts||undefined);
+    const txt = (s,x,yy,opts)=>{
+      if(s==null) return;
+      // Pass arrays through as-is so jsPDF renders multi-line; only stringify scalars
+      doc.text(Array.isArray(s) ? s : String(s), x, yy, opts||undefined);
+    };
     const ck = needed => { if(y+needed > H-12){ doc.addPage(); y=M; } };
 
     // ─── HEADER ───
@@ -1780,15 +1784,13 @@ function downloadPDF(returnBase64){
     const yP = drawFRBlock(M, y, 'WHATS WORKING', cleanPos, [21,128,61], [240,253,244]);
     const yN = drawFRBlock(M+colWFR+6, y, 'WHATS NOT', cleanNeg, [185,28,28], [254,242,242]);
     y = Math.max(yP, yN) + 4;
-    ck(20);
-    const yF = drawFRBlock(M, y, 'FOCUS THIS MONTH', cleanFoc, [249,115,22], [255,251,235]);
-    // make focus full-width
-    fc(255,251,235); dc(249,115,22); doc.setLineWidth(0.3);
+
+    // FOCUS — full-width single render
     const focLinesAll = [];
     cleanFoc.forEach(it=>{ doc.splitTextToSize('• '+it, W-2*M-6).forEach(l=>focLinesAll.push(l)); });
     const fh = focLinesAll.length*3.8 + 8;
-    // redraw focus full width
-    y = Math.max(yP, yN) + 4;
+    ck(fh + 4);
+    fc(255,251,235); dc(249,115,22); doc.setLineWidth(0.3);
     doc.rect(M, y, W-2*M, fh, 'FD');
     doc.setFont('helvetica','bold'); doc.setFontSize(8); tc(249,115,22);
     txt('FOCUS THIS MONTH', M+3, y+5);
