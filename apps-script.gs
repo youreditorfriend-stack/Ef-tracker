@@ -121,7 +121,13 @@ function uploadPdfToDrive(base64Data, filename) {
   );
   const file = folder.createFile(blob);
   file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-  return 'https://drive.google.com/file/d/' + file.getId() + '/view';
+  const fileId = file.getId();
+  return {
+    fileId: fileId,
+    viewUrl: 'https://drive.google.com/file/d/' + fileId + '/view',
+    // Direct content URL — Twilio fetches PDF bytes from here as media attachment
+    downloadUrl: 'https://drive.google.com/uc?id=' + fileId + '&export=download'
+  };
 }
 
 function sendWhatsappReport(data) {
@@ -134,12 +140,14 @@ function sendWhatsappReport(data) {
   }
 
   let pdfLink = '';
+  let pdfMediaUrl = '';
   if (data.pdfBase64) {
     try {
       const filename = data.pdfFilename || ('EfCalculator_' + (data.name||'Report').replace(/[^\w]/g,'_') + '_' + new Date().toISOString().slice(0,10) + '.pdf');
-      pdfLink = uploadPdfToDrive(data.pdfBase64, filename);
+      const fileInfo = uploadPdfToDrive(data.pdfBase64, filename);
+      pdfLink = fileInfo.viewUrl;
+      pdfMediaUrl = fileInfo.downloadUrl;
     } catch(err) {
-      // Log but continue — send text-only message
       console.error('Drive upload failed:', err);
     }
   }
@@ -159,13 +167,17 @@ function sendWhatsappReport(data) {
     '*Monthly Profit:* Rs ' + Math.round(data.monthlyProfit||0).toLocaleString('en-IN') + '\n' +
     '*Monthly Income:* Rs ' + Math.round(data.monthlyIncome||0).toLocaleString('en-IN') + '\n' +
     'Better than ' + Number(data.percentile||0).toFixed(1) + '% of Indian freelancers.\n\n' +
-    (pdfLink ? '*Your full PDF report:*\n' + pdfLink + '\n\n' : '') +
+    'Full report attached as PDF.\n\n' +
     'calculator.youreditorfriend.in';
 
   const url = 'https://api.twilio.com/2010-04-01/Accounts/' + sid + '/Messages.json';
+  const twilioPayload = { To: to, From: from, Body: body };
+  // Attach PDF as a WhatsApp media file (not a link). Twilio fetches it from Drive direct URL.
+  if (pdfMediaUrl) twilioPayload.MediaUrl = pdfMediaUrl;
+
   const opts = {
     method: 'post',
-    payload: { To: to, From: from, Body: body },
+    payload: twilioPayload,
     headers: { 'Authorization': 'Basic ' + Utilities.base64Encode(sid + ':' + token) },
     muteHttpExceptions: true
   };
