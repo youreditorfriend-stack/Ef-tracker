@@ -1547,13 +1547,13 @@ const fmtPdfRs = n => 'Rs ' + Math.round(n||0).toLocaleString('en-IN');
 const formatProjShort = n => { n=Math.round(n||0); if(n>=10000000) return 'Rs '+(n/10000000).toFixed(1).replace(/\.0$/,'')+'Cr'; if(n>=100000) return 'Rs '+(n/100000).toFixed(1).replace(/\.0$/,'')+'L'; if(n>=1000) return 'Rs '+(n/1000).toFixed(0)+'k'; return 'Rs '+n; };
 const STAGE_NAME = {Elite:'ELITE',Thriving:'THRIVING',Growing:'GROWING',Stable:'STABLE',AtRisk:'AT RISK',Critical:'CRITICAL'};
 
-function downloadPDF(){
+function downloadPDF(returnBase64){
   try{
     if(!window.jspdf || !window.jspdf.jsPDF){
-      toast('⏳ PDF library loading, try again');
-      return;
+      if(!returnBase64) toast('⏳ PDF library loading, try again');
+      return null;
     }
-    toast('📄 Generating PDF...');
+    if(!returnBase64) toast('📄 Generating PDF...');
     const a = AppState.answers;
     const sd = computeScore(a);
     const f = sd.financials;
@@ -1847,11 +1847,17 @@ function downloadPDF(){
     txt(`Age ${a.age}  ·  ${a.experience}y exp  ·  ${a.employment}`, W-M, y+4, {align:'right'});
 
     const filename = `EfCalculator_${(a.name||'Report').replace(/[^\w]/g,'_')}_${new Date().toISOString().slice(0,10)}.pdf`;
+    if(returnBase64){
+      const dataUri = doc.output('datauristring');
+      return { base64: dataUri.split(',')[1], filename };
+    }
     doc.save(filename);
     toast('✅ PDF downloaded');
+    return { filename };
   } catch(err){
     console.error('PDF error:', err);
-    toast('❌ PDF failed: '+(err.message||err));
+    if(!returnBase64) toast('❌ PDF failed: '+(err.message||err));
+    return null;
   }
 }
 
@@ -1904,11 +1910,51 @@ async function submitToSheet(silent){
   }
 }
 
-function shareWhatsApp(){
+async function shareWhatsApp(){
+  if(!APPS_SCRIPT_URL || APPS_SCRIPT_URL.startsWith('YOUR_')){
+    toast('⚠️ Backend not configured');
+    return;
+  }
   const a = AppState.answers;
-  const sd = computeScore(a);
-  const txt = `My Ef Calculator score: *${sd.score}/100* — ${sd.stage.label}\n\nMonthly Income: ${fmtRs(sd.financials.monthlyIncome)}\nMonthly Profit: ${fmtRs(sd.financials.monthlyProfit)}\n\nCheck yours at https://calculator.youreditorfriend.in`;
-  window.open(`https://wa.me/?text=${encodeURIComponent(txt)}`, '_blank');
+  if(!a.whatsapp || a.whatsapp.replace(/\D/g,'').length < 7){
+    toast('⚠️ Add a valid WhatsApp number first');
+    return;
+  }
+  toast('📤 Generating + sending report...');
+  try{
+    const sd = computeScore(a);
+    const pdfRes = downloadPDF(true);
+    if(!pdfRes || !pdfRes.base64){
+      toast('❌ PDF generation failed');
+      return;
+    }
+    const payload = {
+      action: 'sendWhatsapp',
+      email: AppState.user?.email||'',
+      name: a.name||AppState.user?.name||'',
+      whatsapp: (a.whatsappCC||'')+(a.whatsapp||''),
+      age: a.age, experience: a.experience, employment: a.employment,
+      monthlyIncome: sd.financials.monthlyIncome,
+      monthlyExpense: sd.financials.monthlyExpense,
+      monthlyInvest: sd.financials.monthlyInvest,
+      monthlyProfit: sd.financials.monthlyProfit,
+      emi: a.hasLoan?a.emi:0,
+      emergencyFund: a.emergencyFund,
+      targetIncome: a.targetIncome,
+      score: sd.score,
+      stage: sd.stage.key,
+      stageLabel: sd.stage.label,
+      percentile: scoreToPercentile(sd.score),
+      customExpenses: a.customExpenses,
+      pdfBase64: pdfRes.base64,
+      pdfFilename: pdfRes.filename
+    };
+    await fetch(APPS_SCRIPT_URL, {method:'POST',mode:'no-cors',body:JSON.stringify(payload)});
+    toast('✅ Sent! Check your WhatsApp in 30 sec');
+  }catch(err){
+    console.error('WA send error:', err);
+    toast('❌ Failed: '+(err.message||err));
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════
