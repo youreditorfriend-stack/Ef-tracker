@@ -459,7 +459,10 @@ const AppState = {
       if(raw){
         if(raw.user) this.user = raw.user;
         if(raw.answers) this.answers = Object.assign({},this.answers,raw.answers);
-        if(typeof raw.step==='number') this.step = raw.step;
+        if(typeof raw.step==='number'){
+          // Clamp to valid range (handles old localStorage from previous step layouts)
+          this.step = Math.min(TOTAL_STEPS - 1, Math.max(0, raw.step));
+        }
       }
     }catch{}
   },
@@ -1155,6 +1158,10 @@ const STEP_RENDERERS = [
 ];
 
 function render(){
+  // Defensive bounds check (in case anything fell out of range)
+  if(AppState.step < 0 || AppState.step >= STEP_RENDERERS.length){
+    AppState.step = STEP_RENDERERS.length - 1;
+  }
   const step = AppState.step;
   document.getElementById('step-counter').textContent = step===Q.RESULT ? 'Result' : `Step ${step+1} of ${TOTAL_STEPS-1}`;
   const pct = step===Q.RESULT ? 100 : ((step+1)/(TOTAL_STEPS-1))*100;
