@@ -1278,28 +1278,28 @@ function downloadPDF(){
   const a = AppState.answers;
   const sd = computeScore(a);
   const wrap = document.createElement('div');
-  // must be in normal flow (not fixed/offscreen) so html2canvas can measure layout
-  wrap.style.cssText = 'position:absolute;left:0;top:0;width:780px;background:#fff;opacity:0;z-index:-1;pointer-events:none';
+  // off-screen but in flow so layout is reliable; explicit A4 px width
+  wrap.style.cssText = 'position:absolute;top:0;left:-99999px;width:794px;background:#fff';
   wrap.innerHTML = buildPDFHTML(a, sd);
   document.body.appendChild(wrap);
   const filename = `EfCalculator_${(a.name||'Report').replace(/[^\w]/g,'_')}_${new Date().toISOString().slice(0,10)}.pdf`;
-  // wait a frame for layout, then render
   setTimeout(()=>{
     html2pdf().set({
-      margin: [10,8,10,8],
+      margin: 8,
       filename,
       image: { type:'jpeg', quality:0.95 },
-      html2canvas: { scale:2, useCORS:true, backgroundColor:'#ffffff', width:780, windowWidth:780, logging:false, scrollX:0, scrollY:0 },
+      // no width/windowWidth — let html2canvas measure the live element
+      html2canvas: { scale:2, useCORS:true, backgroundColor:'#ffffff', logging:false },
       jsPDF: { unit:'mm', format:'a4', orientation:'portrait', compress:true },
       pagebreak: { mode:['css','legacy'] }
-    }).from(wrap.firstElementChild).save().then(()=>{
+    }).from(wrap).save().then(()=>{
       if(wrap.parentNode) wrap.parentNode.removeChild(wrap);
       toast('✅ PDF downloaded');
     }).catch(err=>{
       if(wrap.parentNode) wrap.parentNode.removeChild(wrap);
       toast('❌ PDF failed: '+(err.message||err));
     });
-  }, 150);
+  }, 200);
 }
 
 // ═══════════════════════════════════════════════════════════════
