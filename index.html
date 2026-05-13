@@ -1135,9 +1135,9 @@ function liveUpdateResult(){
 }
 
 // ═══════════════════════════════════════════════════════════════
-// PDF DOWNLOAD (html2pdf — real downloadable file)
+// PDF DOWNLOAD (pure jsPDF programmatic drawing — bulletproof)
 // ═══════════════════════════════════════════════════════════════
-function buildPDFHTML(a, sd){
+function _unused_buildPDFHTML(a, sd){
   const f = sd.financials;
   const pct = scoreToPercentile(sd.score);
   const N = Math.round(FREELANCER_POP_IN * pct/100);
@@ -1283,42 +1283,239 @@ function buildPDFHTML(a, sd){
 </div>`;
 }
 
+// PDF-safe Rs formatter (Helvetica core font can't render ₹)
+const fmtPdfRs = n => 'Rs ' + Math.round(n||0).toLocaleString('en-IN');
+const STAGE_NAME = {Elite:'ELITE',Thriving:'THRIVING',Growing:'GROWING',Stable:'STABLE',AtRisk:'AT RISK',Critical:'CRITICAL'};
+
 function downloadPDF(){
-  if(typeof html2pdf === 'undefined'){ toast('⏳ PDF library loading, try again'); return; }
-  toast('📄 Generating PDF...');
-  const a = AppState.answers;
-  const sd = computeScore(a);
-  // Visible overlay during generation — most reliable for html2canvas
-  const overlay = document.createElement('div');
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:99999;overflow:auto;padding:20px;display:block;text-align:center';
-  const inner = document.createElement('div');
-  inner.style.cssText = 'background:#fff;width:794px;max-width:100%;margin:0 auto;text-align:left;box-shadow:0 8px 32px rgba(0,0,0,.5)';
-  inner.innerHTML = buildPDFHTML(a, sd);
-  const note = document.createElement('div');
-  note.style.cssText = 'color:#fff;font-family:Inter,sans-serif;font-size:13px;margin-bottom:12px;text-align:center';
-  note.textContent = '📄 Generating your PDF report...';
-  overlay.appendChild(note);
-  overlay.appendChild(inner);
-  document.body.appendChild(overlay);
-  const filename = `EfCalculator_${(a.name||'Report').replace(/[^\w]/g,'_')}_${new Date().toISOString().slice(0,10)}.pdf`;
-  // wait 2 frames for layout, then capture
-  requestAnimationFrame(()=>requestAnimationFrame(()=>{
-    html2pdf().set({
-      margin: 8,
-      filename,
-      image: { type:'jpeg', quality:0.95 },
-      html2canvas: { scale:2, useCORS:true, backgroundColor:'#ffffff', logging:false },
-      jsPDF: { unit:'mm', format:'a4', orientation:'portrait', compress:true },
-      pagebreak: { mode:['css','legacy'] }
-    }).from(inner).save().then(()=>{
-      if(overlay.parentNode) overlay.parentNode.removeChild(overlay);
-      toast('✅ PDF downloaded');
-    }).catch(err=>{
-      console.error('PDF error:', err);
-      if(overlay.parentNode) overlay.parentNode.removeChild(overlay);
-      toast('❌ PDF failed: '+(err.message||err));
+  try{
+    if(!window.jspdf || !window.jspdf.jsPDF){
+      toast('⏳ PDF library loading, try again');
+      return;
+    }
+    toast('📄 Generating PDF...');
+    const a = AppState.answers;
+    const sd = computeScore(a);
+    const f = sd.financials;
+    const pct = scoreToPercentile(sd.score);
+    const N = Math.round(FREELANCER_POP_IN * pct/100);
+    const stageRGB = {Elite:[168,85,247],Thriving:[34,197,94],Growing:[249,115,22],Stable:[59,130,246],AtRisk:[245,158,11],Critical:[239,68,68]}[sd.stage.key]||[249,115,22];
+    const recs = recommendations(a, sd);
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({unit:'mm',format:'a4',orientation:'portrait'});
+    const W = 210, H = 297, M = 12;
+    let y = M;
+
+    const tc = (...rgb)=>doc.setTextColor(...rgb);
+    const fc = (...rgb)=>doc.setFillColor(...rgb);
+    const dc = (...rgb)=>doc.setDrawColor(...rgb);
+    const txt = (s,x,yy,opts)=>doc.text(String(s||''), x, yy, opts||undefined);
+    const ck = needed => { if(y+needed > H-12){ doc.addPage(); y=M; } };
+
+    // ─── HEADER ───
+    doc.setFont('helvetica','bold'); doc.setFontSize(18); tc(17,17,17);
+    txt('Ef', M, y+7);
+    const efW = doc.getTextWidth('Ef ');
+    tc(249,115,22); txt('Calculator', M+efW, y+7);
+    doc.setFont('helvetica','normal'); doc.setFontSize(8); tc(102,102,102);
+    txt('Financial Health Report  ·  ' + new Date().toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}), M, y+12);
+
+    doc.setFont('helvetica','bold'); doc.setFontSize(11); tc(17,17,17);
+    txt(a.name || AppState.user?.name || '—', W-M, y+6, {align:'right'});
+    doc.setFont('helvetica','normal'); doc.setFontSize(8); tc(102,102,102);
+    txt(AppState.user?.email||'', W-M, y+10, {align:'right'});
+    txt((a.whatsappCC||'')+(a.whatsapp||''), W-M, y+14, {align:'right'});
+
+    y += 17;
+    dc(249,115,22); doc.setLineWidth(0.6); doc.line(M, y, W-M, y);
+    y += 6;
+
+    // ─── HERO SCORE CARD ───
+    fc(255,248,241); dc(249,115,22); doc.setLineWidth(0.7);
+    doc.roundedRect(M, y, W-2*M, 38, 4, 4, 'FD');
+
+    const cx = M+22, cy = y+19, cr = 14;
+    fc(255,255,255); doc.circle(cx, cy, cr, 'F');
+    dc(...stageRGB); doc.setLineWidth(2.5); doc.circle(cx, cy, cr, 'S');
+    doc.setFont('helvetica','bold'); doc.setFontSize(22); tc(17,17,17);
+    txt(String(sd.score), cx, cy+2, {align:'center'});
+    doc.setFontSize(7); tc(102,102,102);
+    txt('/ 100', cx, cy+7, {align:'center'});
+
+    // Stage badge
+    doc.setFont('helvetica','bold'); doc.setFontSize(9);
+    const stageTxt = STAGE_NAME[sd.stage.key] || 'STABLE';
+    const stageW = doc.getTextWidth(stageTxt) + 6;
+    fc(...stageRGB); doc.roundedRect(M+42, y+5, stageW, 6, 3, 3, 'F');
+    tc(255,255,255); txt(stageTxt, M+45, y+9.2);
+
+    tc(85,85,85); doc.setFont('helvetica','normal'); doc.setFontSize(10);
+    txt(sd.stage.desc, M+42, y+17);
+
+    doc.setFont('helvetica','bold'); doc.setFontSize(11); tc(249,115,22);
+    txt(`Better than ${pct.toFixed(1)}%`, M+42, y+24);
+    doc.setFont('helvetica','normal'); doc.setFontSize(9); tc(51,51,51);
+    const benchLine = doc.splitTextToSize(`of Indian freelancers — ahead of ${fmtN(N)} people.`, W-M-M-42-3);
+    txt(benchLine, M+42, y+29);
+
+    y += 44;
+
+    // ─── MONTHLY / YEARLY tables ───
+    const colW = (W - 2*M - 6) / 2;
+    const drawDataTable = (x, y0, title, rows) => {
+      fc(17,17,17); doc.rect(x, y0, colW, 7, 'F');
+      tc(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(8);
+      txt(title, x+3, y0+5);
+      fc(249,249,249); dc(229,229,229); doc.setLineWidth(0.2);
+      doc.rect(x, y0+7, colW, rows.length*6, 'FD');
+      rows.forEach((r,i)=>{
+        const ry = y0+7+(i+0.7)*6;
+        doc.setFont('helvetica','normal'); doc.setFontSize(8); tc(102,102,102);
+        txt(r[0], x+3, ry);
+        doc.setFont('helvetica','bold'); tc(...r[2]);
+        txt(r[1], x+colW-3, ry, {align:'right'});
+      });
+      return y0 + 7 + rows.length*6;
+    };
+    const G=[34,197,94], R=[239,68,68], O=[249,115,22];
+    drawDataTable(M, y, 'MONTHLY', [
+      ['Income', fmtPdfRs(f.monthlyIncome), G],
+      ['Expenses', fmtPdfRs(f.monthlyExpense), R],
+      ['Investments', fmtPdfRs(f.monthlyInvest), O],
+      ['Net Profit', fmtPdfRs(f.monthlyProfit), f.monthlyProfit>=0?G:R]
+    ]);
+    drawDataTable(M+colW+6, y, 'YEARLY', [
+      ['Income', fmtPdfRs(f.yearlyIncome), G],
+      ['Expenses', fmtPdfRs(f.yearlyExpense), R],
+      ['Investments', fmtPdfRs(f.yearlyInvest), O],
+      ['Net Profit', fmtPdfRs(f.yearlyProfit), f.yearlyProfit>=0?G:R]
+    ]);
+    y += 7 + 4*6 + 6;
+
+    // ─── INCOME / EXPENSE BREAKDOWN ───
+    const incLines = [];
+    if(a.mainJobMonthly) incLines.push(['Salary / Main Job', a.mainJobMonthly]);
+    if(a.videoRate*a.videoQty) incLines.push(['Video Editing', a.videoRate*a.videoQty]);
+    if(a.thumbRate*a.thumbQty) incLines.push(['Thumbnails', a.thumbRate*a.thumbQty]);
+    if(a.consultRate*a.consultDays) incLines.push(['Consulting', a.consultRate*a.consultDays]);
+    if(a.otherInc) incLines.push(['Other income', a.otherInc]);
+    const expLines = [];
+    if(a.rent) expLines.push(['Rent / Office', a.rent]);
+    if(a.food) expLines.push(['Food', a.food]);
+    if(a.internet) expLines.push(['Internet', a.internet]);
+    if(a.electricity) expLines.push(['Electricity', a.electricity]);
+    if(a.phone) expLines.push(['Phone', a.phone]);
+    if(a.software) expLines.push(['Software / AI', a.software]);
+    if(a.travel) expLines.push(['Travel', a.travel]);
+    (a.customExpenses||[]).forEach(c=>{ if(c.amount>0) expLines.push([c.name||'Custom', c.amount]); });
+    if(a.hasLoan && a.emi) expLines.push(['EMI', a.emi]);
+
+    doc.setFont('helvetica','bold'); doc.setFontSize(8);
+    tc(34,128,94); txt('INCOME BREAKDOWN', M, y);
+    tc(185,28,28); txt('EXPENSE BREAKDOWN', M+colW+6, y);
+    y += 2;
+
+    const drawBd = (x, y0, rows, bg, brd, clr) => {
+      if(rows.length===0){
+        fc(249,249,249); dc(229,229,229); doc.setLineWidth(0.2);
+        doc.rect(x, y0, colW, 8, 'FD');
+        tc(150,150,150); doc.setFont('helvetica','italic'); doc.setFontSize(8);
+        txt('No entries', x+3, y0+5);
+        return y0+8;
+      }
+      const hh = rows.length*5.5;
+      fc(...bg); dc(...brd); doc.setLineWidth(0.2);
+      doc.rect(x, y0, colW, hh, 'FD');
+      rows.forEach((r,i)=>{
+        const ry = y0+(i+0.7)*5.5;
+        doc.setFont('helvetica','normal'); doc.setFontSize(8); tc(102,102,102);
+        txt(r[0], x+3, ry);
+        doc.setFont('helvetica','bold'); tc(...clr);
+        txt(fmtPdfRs(r[1]), x+colW-3, ry, {align:'right'});
+      });
+      return y0+hh;
+    };
+    const yi = drawBd(M, y, incLines, [240,253,244], [187,247,208], [21,128,61]);
+    const ye = drawBd(M+colW+6, y, expLines, [254,242,242], [254,202,202], [185,28,28]);
+    y = Math.max(yi, ye) + 6;
+
+    // ─── SCORE BREAKDOWN bars ───
+    ck(sd.breakdown.length*7 + 12);
+    doc.setFont('helvetica','bold'); doc.setFontSize(8); tc(102,102,102);
+    txt('SCORE BREAKDOWN', M, y);
+    y += 2;
+    const bdH = sd.breakdown.length*7 + 4;
+    fc(249,249,249); dc(229,229,229); doc.setLineWidth(0.2);
+    doc.rect(M, y, W-2*M, bdH, 'FD');
+    y += 3;
+    sd.breakdown.forEach(b=>{
+      doc.setFont('helvetica','normal'); doc.setFontSize(8); tc(102,102,102);
+      txt(b.key, M+3, y+3);
+      doc.setFont('helvetica','bold'); tc(17,17,17);
+      txt(`${b.val.toFixed(0)} / ${b.max}`, W-M-3, y+3, {align:'right'});
+      fc(229,229,229); doc.rect(M+3, y+4, W-2*M-6, 1.5, 'F');
+      fc(249,115,22); doc.rect(M+3, y+4, (W-2*M-6) * b.pct/100, 1.5, 'F');
+      y += 7;
     });
-  }));
+    y += 4;
+
+    // ─── 4 KEY STATS ───
+    ck(22);
+    const statW = (W-2*M-9)/4;
+    const profitMarginPct = f.monthlyIncome>0?((f.monthlyIncome-f.monthlyExpense)/f.monthlyIncome*100).toFixed(0):0;
+    const savingsRatePct  = f.monthlyIncome>0?(f.monthlyInvest/f.monthlyIncome*100).toFixed(0):0;
+    const efMonths        = f.monthlyExpense>0?((a.emergencyFund||0)/f.monthlyExpense).toFixed(1):0;
+    const goalPct         = a.targetIncome>0?Math.min(100,Math.round(f.monthlyIncome/a.targetIncome*100)):0;
+    const stats = [
+      ['PROFIT MARGIN', profitMarginPct+'%'],
+      ['SAVINGS RATE',  savingsRatePct+'%'],
+      ['EMERG. FUND',   efMonths+'x mo'],
+      ['GOAL PROGRESS', goalPct+'%']
+    ];
+    stats.forEach((s,i)=>{
+      const x = M + i*(statW+3);
+      fc(249,249,249); dc(229,229,229); doc.setLineWidth(0.2);
+      doc.rect(x, y, statW, 16, 'FD');
+      doc.setFont('helvetica','bold'); doc.setFontSize(7); tc(102,102,102);
+      txt(s[0], x+statW/2, y+5, {align:'center'});
+      doc.setFontSize(14); tc(17,17,17);
+      txt(s[1], x+statW/2, y+12, {align:'center'});
+    });
+    y += 21;
+
+    // ─── RECOMMENDATIONS ───
+    ck(15);
+    doc.setFont('helvetica','bold'); doc.setFontSize(8); tc(102,102,102);
+    txt('PERSONALIZED RECOMMENDATIONS', M, y);
+    y += 3;
+    recs.forEach(r=>{
+      const clean = r.txt.replace(/<[^>]+>/g,'').replace(/₹/g,'Rs ');
+      const lines = doc.splitTextToSize(clean, W-2*M-8);
+      const hh = lines.length*4 + 4;
+      ck(hh+2);
+      fc(255,251,235); doc.rect(M, y, W-2*M, hh, 'F');
+      fc(249,115,22); doc.rect(M, y, 1, hh, 'F');
+      doc.setFont('helvetica','normal'); doc.setFontSize(8); tc(51,51,51);
+      txt(lines, M+4, y+4);
+      y += hh + 2;
+    });
+
+    // ─── FOOTER ───
+    y = Math.max(y, H - 14);
+    dc(229,229,229); doc.setLineWidth(0.2);
+    doc.line(M, y, W-M, y);
+    doc.setFont('helvetica','normal'); doc.setFontSize(7); tc(150,150,150);
+    txt('Generated by Ef Calculator  ·  calculator.youreditorfriend.in', M, y+4);
+    txt(`Age ${a.age}  ·  ${a.experience}y exp  ·  ${a.employment}`, W-M, y+4, {align:'right'});
+
+    const filename = `EfCalculator_${(a.name||'Report').replace(/[^\w]/g,'_')}_${new Date().toISOString().slice(0,10)}.pdf`;
+    doc.save(filename);
+    toast('✅ PDF downloaded');
+  } catch(err){
+    console.error('PDF error:', err);
+    toast('❌ PDF failed: '+(err.message||err));
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════
