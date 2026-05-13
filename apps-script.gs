@@ -32,7 +32,7 @@ const HEADERS = [
   'Timestamp','Email','Name','WhatsApp','Age','Experience','Employment',
   'MonthlyIncome','MonthlyExpense','MonthlyInvestment','MonthlyProfit',
   'EMI','EmergencyFund','TargetIncome',
-  'Score','Stage','PercentileBetterThan','CustomExpenses','PdfDriveLink','WhatsAppSent'
+  'Score','Stage','PercentileBetterThan','CustomExpenses','PdfDriveLink','WhatsAppSent','EmailSent'
 ];
 
 function getProp(key) {
@@ -56,9 +56,8 @@ function doPost(e) {
     const data = JSON.parse(e.postData.contents);
     const action = data.action || 'save';
 
-    if (action === 'sendWhatsapp') {
-      return sendWhatsappReport(data);
-    }
+    if (action === 'sendWhatsapp') return sendWhatsappReport(data);
+    if (action === 'sendEmail')    return sendEmailReport(data);
     return saveToSheet(data);
   } catch (err) {
     return jsonResponse({ok: false, error: String(err)});
@@ -103,9 +102,57 @@ function saveToSheet(data, extras) {
     data.percentile || 0,
     JSON.stringify(data.customExpenses || []),
     extras.pdfLink || '',
-    extras.waSent ? 'YES' : 'NO'
+    extras.waSent ? 'YES' : 'NO',
+    extras.emailSent ? 'YES' : 'NO'
   ]);
   return jsonResponse({ok: true});
+}
+
+function sendEmailReport(data) {
+  const targetEmail = (data.email || '').trim();
+  if (!targetEmail) {
+    return jsonResponse({ok: false, error: 'No email address'});
+  }
+
+  let pdfLink = '';
+  let blob = null;
+  if (data.pdfBase64) {
+    try {
+      const filename = data.pdfFilename || ('EfCalculator_' + (data.name||'Report').replace(/[^\w]/g,'_') + '_' + new Date().toISOString().slice(0,10) + '.pdf');
+      const fileInfo = uploadPdfToDrive(data.pdfBase64, filename);
+      pdfLink = fileInfo.viewUrl;
+      blob = Utilities.newBlob(Utilities.base64Decode(data.pdfBase64), 'application/pdf', filename);
+    } catch(err) { console.error('Email PDF prep failed:', err); }
+  }
+
+  const stageLabel = (data.stageLabel || data.stage || '').replace(/[^\x00-\x7F]/g,'').trim();
+  const subject = 'Your Ef Calculator Report — Score ' + (data.score||0) + '/100';
+  const body =
+    'Hi ' + (data.name||'there') + ',\n\n' +
+    'Here is your financial health snapshot from Ef Calculator:\n\n' +
+    'Score: ' + (data.score||0) + '/100 — ' + stageLabel + '\n' +
+    'Monthly Income:   Rs ' + Math.round(data.monthlyIncome||0).toLocaleString('en-IN') + '\n' +
+    'Monthly Expense:  Rs ' + Math.round(data.monthlyExpense||0).toLocaleString('en-IN') + '\n' +
+    'Monthly Profit:   Rs ' + Math.round(data.monthlyProfit||0).toLocaleString('en-IN') + '\n\n' +
+    'You are doing better than ' + Number(data.percentile||0).toFixed(1) + '% of Indian freelancers.\n\n' +
+    'Your full PDF report is attached.\n' +
+    (pdfLink ? '(Also accessible online: ' + pdfLink + ')\n\n' : '\n') +
+    '— Ef Calculator\n' +
+    'https://calculator.youreditorfriend.in';
+
+  let emailSent = false;
+  try {
+    const opts = { name: 'Ef Calculator' };
+    if (blob) opts.attachments = [blob];
+    GmailApp.sendEmail(targetEmail, subject, body, opts);
+    emailSent = true;
+  } catch(err) {
+    console.error('GmailApp.sendEmail failed:', err);
+  }
+
+  // Persist data + flags
+  saveToSheet(data, { pdfLink: pdfLink, emailSent: emailSent });
+  return jsonResponse({ ok: emailSent, pdfLink: pdfLink });
 }
 
 function uploadPdfToDrive(base64Data, filename) {

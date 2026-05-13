@@ -414,9 +414,9 @@ function benchmarkText(stage, score){
 // APP STATE
 // ═══════════════════════════════════════════════════════════════
 const Q = {
-  WELCOME:0, PHONE:1, ABOUT:2, INCOME:3, EXPENSE:4, LOAN:5, INVEST:6, EMERGENCY:7, GOAL:8, RESULT:9
+  WELCOME:0, ABOUT:1, INCOME:2, EXPENSE:3, LOAN:4, INVEST:5, EMERGENCY:6, GOAL:7, RESULT:8
 };
-const TOTAL_STEPS = 10;
+const TOTAL_STEPS = 9;
 
 const AppState = {
   user: null,
@@ -449,7 +449,8 @@ const AppState = {
     emergencyFund: 0,
     // goals
     targetIncome: 80000, savingsGoal: 500000,
-    projectionYears: 10
+    projectionYears: 10,
+    reportEmail: ''
   },
 
   load(){
@@ -796,7 +797,7 @@ function renderAbout(){
   ];
   return `
 <div class="step-h">
-  <span class="step-num">Step 3 of ${TOTAL_STEPS}</span>
+  <span class="step-num">Step 2 of ${TOTAL_STEPS-1}</span>
   <div class="step-title">About you</div>
   <div class="step-sub">Quick context — helps personalize your benchmark.</div>
 </div>
@@ -824,7 +825,7 @@ function renderIncome(){
   const a=AppState.answers;
   return `
 <div class="step-h">
-  <span class="step-num">Step 4 of ${TOTAL_STEPS}</span>
+  <span class="step-num">Step 3 of ${TOTAL_STEPS-1}</span>
   <div class="step-title">Monthly income</div>
   <div class="step-sub">Drag the sliders or click the numbers to type. Add only what applies.</div>
 </div>
@@ -852,7 +853,7 @@ function renderExpense(){
   const a=AppState.answers;
   return `
 <div class="step-h">
-  <span class="step-num">Step 5 of ${TOTAL_STEPS}</span>
+  <span class="step-num">Step 4 of ${TOTAL_STEPS-1}</span>
   <div class="step-title">Monthly expenses</div>
   <div class="step-sub">Your fixed monthly outflow. Add custom items if your category is missing.</div>
 </div>
@@ -883,7 +884,7 @@ function renderLoan(){
   const a=AppState.answers;
   return `
 <div class="step-h">
-  <span class="step-num">Step 6 of ${TOTAL_STEPS}</span>
+  <span class="step-num">Step 5 of ${TOTAL_STEPS-1}</span>
   <div class="step-title">Loans / EMI</div>
   <div class="step-sub">Any active loan or monthly EMI commitment?</div>
 </div>
@@ -901,7 +902,7 @@ function renderInvest(){
   const a=AppState.answers;
   return `
 <div class="step-h">
-  <span class="step-num">Step 7 of ${TOTAL_STEPS}</span>
+  <span class="step-num">Step 6 of ${TOTAL_STEPS-1}</span>
   <div class="step-title">Monthly investments</div>
   <div class="step-sub">SIPs, stocks, anything you put away monthly.</div>
 </div>
@@ -914,7 +915,7 @@ function renderEmergency(){
   const a=AppState.answers;
   return `
 <div class="step-h">
-  <span class="step-num">Step 8 of ${TOTAL_STEPS}</span>
+  <span class="step-num">Step 7 of ${TOTAL_STEPS-1}</span>
   <div class="step-title">Emergency fund</div>
   <div class="step-sub">Total cash you can access immediately if income stops tomorrow.</div>
 </div>
@@ -926,7 +927,7 @@ function renderGoal(){
   const a=AppState.answers;
   return `
 <div class="step-h">
-  <span class="step-num">Step 9 of ${TOTAL_STEPS}</span>
+  <span class="step-num">Step 8 of ${TOTAL_STEPS-1}</span>
   <div class="step-title">Your goals</div>
   <div class="step-sub">Where you want to be — we'll measure progress against this.</div>
 </div>
@@ -1063,10 +1064,25 @@ ${numControl({key:'food',label:'Food',min:0,max:50000,step:200,value:a.food})}
 ${numControl({key:'sip',label:'SIP / month',min:0,max:100000,step:500,value:a.sip})}
 ${numControl({key:'emergencyFund',label:'Emergency fund',min:0,max:2000000,step:5000,value:a.emergencyFund})}
 
-<div class="section-title">Take action</div>
+<div class="section-title">📬 Get your full report</div>
+<div class="card" style="margin-bottom:14px">
+  <div class="field" style="margin-bottom:10px">
+    <label class="field-lbl">Your WhatsApp (optional)</label>
+    <div class="phone-row">
+      <input class="input cc" data-input="whatsappCC" value="${a.whatsappCC||'+91'}"/>
+      <input class="input" data-input="whatsapp" type="tel" inputmode="numeric" value="${a.whatsapp||''}" placeholder="9876543210"/>
+    </div>
+  </div>
+  <div class="field" style="margin-bottom:0">
+    <label class="field-lbl">Your Email</label>
+    <input class="input" data-input="reportEmail" type="email" value="${a.reportEmail||AppState.user?.email||''}" placeholder="you@example.com"/>
+  </div>
+</div>
+
 <div class="action-grid">
-  <button class="btn btn-primary btn-full" id="btn-pdf">📥 Download PDF Report</button>
-  <button class="btn btn-secondary btn-full" id="btn-wa">📲 Send to WhatsApp</button>
+  <button class="btn btn-primary btn-full" id="btn-pdf">📥 Download PDF</button>
+  <button class="btn btn-secondary" id="btn-email">📧 Email me</button>
+  <button class="btn btn-secondary" id="btn-wa">📲 WhatsApp me</button>
   <button class="btn btn-ghost btn-full" id="btn-restart" style="margin-top:8px;font-size:13px">↻ Start over</button>
 </div>`;
 }
@@ -1134,7 +1150,7 @@ function autoSubmitOnce(){
 // MAIN RENDER
 // ═══════════════════════════════════════════════════════════════
 const STEP_RENDERERS = [
-  renderWelcome, renderPhone, renderAbout, renderIncome, renderExpense,
+  renderWelcome, renderAbout, renderIncome, renderExpense,
   renderLoan, renderInvest, renderEmergency, renderGoal, renderResult
 ];
 
@@ -1177,7 +1193,6 @@ function canAdvance(){
   const step = AppState.step;
   const a = AppState.answers;
   if(step===Q.WELCOME) return !!AppState.user;
-  if(step===Q.PHONE) return /^\d{7,15}$/.test((a.whatsapp||'').replace(/\D/g,''));
   if(step===Q.ABOUT) return (a.name||'').trim().length>0;
   return true;
 }
@@ -1298,8 +1313,7 @@ function setupEvents(){
     }
     if(t.id==='btn-next'){
       if(!canAdvance()){
-        if(AppState.step===Q.PHONE) toast('Enter a valid WhatsApp number');
-        else if(AppState.step===Q.ABOUT) toast('Please enter your name');
+        if(AppState.step===Q.ABOUT) toast('Please enter your name');
         else toast('Complete this step to continue');
         return;
       }
@@ -1332,6 +1346,7 @@ function setupEvents(){
     // result actions
     if(t.id==='btn-pdf'){ downloadPDF(); return; }
     if(t.id==='btn-wa'){ shareWhatsApp(); return; }
+    if(t.id==='btn-email'){ sendEmailReport(); return; }
     if(t.id==='btn-restart'){
       if(confirm('Start over? Your current answers will be cleared.')) AppState.reset();
       return;
@@ -1930,6 +1945,52 @@ async function submitToSheet(silent){
   }catch(err){
     setSaveStatus('err','❌ Save failed — refresh to retry');
     if(!silent) toast('❌ Save failed — try again');
+  }
+}
+
+async function sendEmailReport(){
+  if(!APPS_SCRIPT_URL || APPS_SCRIPT_URL.startsWith('YOUR_')){
+    toast('⚠️ Backend not configured');
+    return;
+  }
+  const a = AppState.answers;
+  const email = (a.reportEmail || AppState.user?.email || '').trim();
+  if(!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
+    toast('⚠️ Enter a valid email first');
+    return;
+  }
+  toast('📧 Generating + sending to email...');
+  try{
+    const sd = computeScore(a);
+    const pdfRes = downloadPDF(true);
+    if(!pdfRes || !pdfRes.base64){ toast('❌ PDF generation failed'); return; }
+    const payload = {
+      action: 'sendEmail',
+      email: email,
+      googleEmail: AppState.user?.email||'',
+      name: a.name||AppState.user?.name||'',
+      whatsapp: (a.whatsappCC||'')+(a.whatsapp||''),
+      age: a.age, experience: a.experience, employment: a.employment,
+      monthlyIncome: sd.financials.monthlyIncome,
+      monthlyExpense: sd.financials.monthlyExpense,
+      monthlyInvest: sd.financials.monthlyInvest,
+      monthlyProfit: sd.financials.monthlyProfit,
+      emi: a.hasLoan?a.emi:0,
+      emergencyFund: a.emergencyFund,
+      targetIncome: a.targetIncome,
+      score: sd.score,
+      stage: sd.stage.key,
+      stageLabel: sd.stage.label,
+      percentile: scoreToPercentile(sd.score),
+      customExpenses: a.customExpenses,
+      pdfBase64: pdfRes.base64,
+      pdfFilename: pdfRes.filename
+    };
+    await fetch(APPS_SCRIPT_URL, {method:'POST',mode:'no-cors',body:JSON.stringify(payload)});
+    toast('✅ Sent to '+email+' — check inbox in 30 sec');
+  }catch(err){
+    console.error('Email send error:', err);
+    toast('❌ Failed: '+(err.message||err));
   }
 }
 
